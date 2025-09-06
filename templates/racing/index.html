@@ -278,6 +278,18 @@
 .star.hover-preview {
     opacity: 0.7;
 }
+
+/* 금토일 버튼 스타일 */
+.day-btn.active {
+    background-color: #ffffff !important;
+    color: #0d6efd !important;
+    border-color: #ffffff !important;
+}
+
+.day-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+}
 </style>
 {% endblock %}
 
@@ -306,13 +318,13 @@
                             <i class="fas fa-calendar-check"></i> 오늘의 경주 일정
                         </h5>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('friday')">
+                            <button type="button" class="btn btn-outline-light day-btn" data-day="friday">
                                 <i class="fas fa-calendar-alt"></i> 금요일
                             </button>
-                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('saturday')">
+                            <button type="button" class="btn btn-outline-light day-btn" data-day="saturday">
                                 <i class="fas fa-calendar-alt"></i> 토요일
                             </button>
-                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('sunday')">
+                            <button type="button" class="btn btn-outline-light day-btn" data-day="sunday">
                                 <i class="fas fa-calendar-alt"></i> 일요일
                             </button>
                         </div>
@@ -497,6 +509,12 @@ $(document).ready(function() {
     
     // 특정 요일 경주 로드
     function loadRacesByDay(dayType) {
+        console.log('loadRacesByDay 호출:', dayType);
+        
+        // 로딩 표시
+        const container = $('#today-races-container');
+        container.html('<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">경주 일정을 불러오는 중...</p></div>');
+        
         // 현재 날짜 기준으로 해당 요일 찾기
         const today = new Date();
         const currentDay = today.getDay(); // 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토
@@ -538,19 +556,25 @@ $(document).ready(function() {
                        String(targetDate.getMonth() + 1).padStart(2, '0') + 
                        String(targetDate.getDate()).padStart(2, '0');
         
-        // 버튼 활성화 상태 변경
-        $('.btn-group .btn').removeClass('active');
-        $(`button[onclick*="${dayType}"]`).addClass('active');
+        console.log('계산된 날짜:', dateStr, '요일:', dayType);
+        
+        // 버튼 활성화 상태 변경 (이벤트 핸들러에서 처리됨)
         
         // API 호출 (기존 today-races API 활용)
         $.ajax({
             url: '/racing/api/schedule-data/',
+            method: 'GET',
             data: {
                 'meet': 1, // 서울 경마장
                 'date': dateStr
             },
+            beforeSend: function() {
+                console.log('API 요청 시작:', '/racing/api/schedule-data/', {meet: 1, date: dateStr});
+            },
             success: function(response) {
+                console.log('API 응답:', response);
                 if (response.success) {
+                    console.log('경주 데이터 개수:', response.data.length);
                     const racesData = {
                         races: response.data,
                         sorted_races: response.data.sort((a, b) => {
@@ -571,13 +595,15 @@ $(document).ready(function() {
                     const headerTitle = `<i class="fas fa-calendar-check"></i> ${dayNames[dayType]} 경주 일정 (${response.formatted_date})`;
                     $('.card-header h5').html(headerTitle);
                 } else {
+                    console.error('API 오류:', response.error);
                     displayNoRaces();
                     showError(response.error || '경주 정보를 불러올 수 없습니다.');
                 }
             },
-            error: function() {
+            error: function(xhr, status, error) {
+                console.error('AJAX 오류:', status, error, xhr.responseText);
                 displayNoRaces();
-                showError('경주 정보 로드 실패');
+                showError('경주 정보 로드 실패: ' + error);
             }
         });
     }
@@ -666,6 +692,19 @@ $(document).ready(function() {
     
     // 이벤트 핸들러 설정
     function setupEventHandlers() {
+        // 금토일 버튼 클릭 이벤트
+        $('.day-btn').click(function() {
+            const dayType = $(this).data('day');
+            console.log('금토일 버튼 클릭:', dayType);
+            
+            // 버튼 활성화 상태 변경
+            $('.day-btn').removeClass('active');
+            $(this).addClass('active');
+            
+            // 해당 요일 경주 로드
+            loadRacesByDay(dayType);
+        });
+        
         // 새로고침 버튼
         $('#refresh-data').click(function() {
             const btn = $(this);
