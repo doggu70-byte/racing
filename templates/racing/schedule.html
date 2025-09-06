@@ -1,0 +1,622 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - 경마 예측 시스템{% endblock %}
+
+{% block extra_css %}
+<style>
+.race-card {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+}
+.race-card:hover {
+    border-left-color: #28a745;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.race-time {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #007bff;
+}
+.race-info {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+.prize-money {
+    color: #28a745;
+    font-weight: bold;
+}
+.loading-spinner {
+    display: none;
+}
+.search-controls {
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.date-input {
+    max-width: 200px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 페이지 헤더 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-calendar-alt"></i> {{ title }}</h2>
+                    <p class="text-muted">경마 일정 및 결과 조회 (금, 토, 일요일만 경마 개최)</p>
+                </div>
+                <div>
+                    <span id="current-time" class="text-muted"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 검색 컨트롤 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card search-controls">
+                <div class="card-body">
+                    <form id="searchForm" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="meet" class="form-label">경마장</label>
+                            <select id="meet" class="form-select">
+                                {% for key, name in tracks.items %}
+                                <option value="{{ key }}" {% if key == 1 %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="searchDate" class="form-label">조회 날짜</label>
+                            <input type="date" id="searchDate" class="form-control date-input">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="dataType" class="form-label">조회 유형</label>
+                            <select id="dataType" class="form-select">
+                                <option value="schedule">경주 일정</option>
+                                <option value="results">경주 결과</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> 조회
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" id="todayBtn" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-calendar-day"></i> 최근 경주일
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 결과 영역 -->
+    <div class="row">
+        <div class="col-12">
+            <!-- 로딩 스피너 -->
+            <div id="loadingSpinner" class="text-center loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">데이터를 조회하는 중...</p>
+            </div>
+
+            <!-- 결과 헤더 -->
+            <div id="resultHeader" style="display: none;">
+                <div class="alert alert-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong id="resultInfo"></strong>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary" id="resultCount">0건</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 경주 일정 결과 -->
+            <div id="scheduleResults" class="row" style="display: none;">
+                <!-- 동적으로 추가될 경주 카드들 -->
+            </div>
+
+            <!-- 경주 결과 테이블 -->
+            <div id="resultsTable" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>순위</th>
+                                        <th>마명</th>
+                                        <th>기수</th>
+                                        <th>조교사</th>
+                                        <th>기록</th>
+                                        <th>마체중</th>
+                                        <th>단승배당</th>
+                                        <th>연승배당</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resultsTableBody">
+                                    <!-- 동적으로 추가될 결과 데이터 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 에러 메시지 -->
+            <div id="errorMessage" class="alert alert-danger" style="display: none;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="errorText"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 출전마 리스트 모달 -->
+<div class="modal fade" id="raceHorsesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-horse"></i> 
+                    <span id="raceHorsesTitle">출전마 리스트</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="raceHorsesLoading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="raceHorsesContent" style="display: none;">
+                    <div class="row" id="raceHorsesList">
+                        <!-- 출전마 카드들이 여기에 추가됩니다 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 경주마 상세정보 모달 -->
+<div class="modal fade" id="horseDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i> 
+                    <span id="horseDetailTitle">경주마 상세정보</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="horseDetailLoading" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="horseDetailContent" style="display: none;">
+                    <!-- 경주마 상세정보가 여기에 표시됩니다 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 현재 시간 표시
+    function updateTime() {
+        const now = new Date();
+        $('#current-time').text(now.toLocaleString('ko-KR'));
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // 최근 경주일 버튼 클릭
+    $('#todayBtn').click(function() {
+        $('#searchDate').val('');
+        loadData();
+    });
+
+    // 폼 제출
+    $('#searchForm').submit(function(e) {
+        e.preventDefault();
+        loadData();
+    });
+
+    // 페이지 로드 시 최근 경주일 데이터 로드
+    loadData();
+
+    function loadData() {
+        const meet = $('#meet').val();
+        const date = $('#searchDate').val().replace(/-/g, '');
+        const dataType = $('#dataType').val();
+
+        // UI 초기화
+        hideAllResults();
+        $('#loadingSpinner').show();
+
+        const apiUrl = dataType === 'schedule' ? '/api/schedule/' : '/api/results/';
+        const params = { meet: meet };
+        if (date) {
+            params.date = date;
+        }
+
+        $.ajax({
+            url: apiUrl,
+            data: params,
+            success: function(response) {
+                $('#loadingSpinner').hide();
+                
+                if (response.success) {
+                    showResults(response, dataType);
+                } else {
+                    showError(response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#loadingSpinner').hide();
+                showError('서버 오류가 발생했습니다: ' + error);
+            }
+        });
+    }
+
+    function showResults(response, dataType) {
+        const { data, meet, formatted_date, count } = response;
+        
+        // 결과 헤더 표시
+        $('#resultInfo').text(`${meet} • ${formatted_date || '최근 경주일'} • ${dataType === 'schedule' ? '경주 일정' : '경주 결과'}`);
+        $('#resultCount').text(`${count}건`);
+        $('#resultHeader').show();
+
+        if (dataType === 'schedule') {
+            showScheduleResults(data);
+        } else {
+            showResultsTable(data);
+        }
+    }
+
+    function showScheduleResults(races) {
+        const container = $('#scheduleResults');
+        container.empty();
+
+        if (races.length === 0) {
+            container.append('<div class="col-12"><div class="alert alert-warning">해당 날짜에 경주 일정이 없습니다.</div></div>');
+        } else {
+            races.forEach(race => {
+                const card = createRaceCard(race);
+                container.append(card);
+            });
+        }
+        container.show();
+    }
+
+    function createRaceCard(race) {
+        const prize1 = parseInt(race.chaksun1 || 0).toLocaleString();
+        const time = race.schStTime ? `${race.schStTime.substr(0,2)}:${race.schStTime.substr(2,2)}` : '-';
+        const budam = race.budam || '-';
+        const spRating = race.spRating || '0';
+        const stRating = race.stRating || '0';
+        
+        return `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card race-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title">제 ${race.rcNo}경주</h5>
+                        <span class="race-time">${time}</span>
+                    </div>
+                    <h6 class="card-subtitle mb-2 text-muted">${race.rcName}</h6>
+                    <div class="race-info">
+                        <p class="mb-1"><i class="fas fa-road"></i> 거리: ${race.rcDist}m</p>
+                        <p class="mb-1"><i class="fas fa-star"></i> 등급: ${race.rank}</p>
+                        <p class="mb-1"><i class="fas fa-weight-hanging"></i> 부담: ${budam}</p>
+                        <p class="mb-1"><i class="fas fa-users"></i> 조건: ${race.ageCond} • ${race.sexCond}</p>
+                        <p class="mb-1"><i class="fas fa-chart-bar"></i> 레이팅: ${spRating}~${stRating}</p>
+                        <p class="mb-0 prize-money"><i class="fas fa-trophy"></i> 1착 상금: ${prize1}원</p>
+                    </div>
+                    <div class="mt-3 d-flex gap-1 flex-wrap">
+                        <button class="btn btn-sm btn-warning" onclick="predictRace('${race.rcDate}', '${race.rcNo}')">
+                            <i class="fas fa-brain"></i> 예측
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="viewRaceHorses('${race.rcDate}', '${race.rcNo}')">
+                            <i class="fas fa-horse"></i> 출전마
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewRaceResults('${race.rcDate}', '${race.rcNo}')">
+                            <i class="fas fa-chart-line"></i> 결과
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function showResultsTable(results) {
+        const tbody = $('#resultsTableBody');
+        tbody.empty();
+
+        if (results.length === 0) {
+            tbody.append('<tr><td colspan="8" class="text-center">해당 날짜에 경주 결과가 없습니다.</td></tr>');
+        } else {
+            results.forEach(result => {
+                const row = createResultRow(result);
+                tbody.append(row);
+            });
+        }
+        $('#resultsTable').show();
+    }
+
+    function createResultRow(result) {
+        const winOdds = parseFloat(result.winOdds || 0).toFixed(1);
+        const plcOdds = parseFloat(result.plcOdds || 0).toFixed(1);
+        const weight = result.wgHr || '-';
+        
+        return `
+        <tr>
+            <td><strong>${result.ord}</strong></td>
+            <td>${result.hrName}</td>
+            <td>${result.jkName}</td>
+            <td>${result.trName}</td>
+            <td>${result.rcTime}</td>
+            <td>${weight}</td>
+            <td>${winOdds}</td>
+            <td>${plcOdds}</td>
+        </tr>`;
+    }
+
+    function hideAllResults() {
+        $('#resultHeader, #scheduleResults, #resultsTable, #errorMessage').hide();
+    }
+
+    function showError(message) {
+        $('#errorText').text(message);
+        $('#errorMessage').show();
+    }
+
+    // 전역 함수 - 특정 경주 결과 보기
+    window.viewRaceResults = function(date, raceNo) {
+        const meet = $('#meet').val();
+        $('#dataType').val('results');
+        $('#searchDate').val(`${date.substr(0,4)}-${date.substr(4,2)}-${date.substr(6,2)}`);
+        
+        $.ajax({
+            url: '/api/results/',
+            data: { meet: meet, date: date, race_no: raceNo },
+            success: function(response) {
+                if (response.success) {
+                    hideAllResults();
+                    $('#resultInfo').text(`${response.meet} • ${response.formatted_date} • 제 ${raceNo}경주 결과`);
+                    $('#resultCount').text(`${response.count}건`);
+                    $('#resultHeader').show();
+                    showResultsTable(response.data);
+                } else {
+                    showError(response.error);
+                }
+            }
+        });
+    };
+
+    // 전역 함수 - 출전마 리스트 보기
+    window.viewRaceHorses = function(date, raceNo) {
+        const meet = $('#meet').val();
+        const meetName = $('#meet option:selected').text();
+        
+        const modal = $('#raceHorsesModal');
+        const modalElement = modal.get(0);
+        
+        // 기존 이벤트 정리
+        modal.off();
+        
+        // 기존 Bootstrap 인스턴스 제거
+        const existingInstance = bootstrap.Modal.getInstance(modalElement);
+        if (existingInstance) {
+            existingInstance.dispose();
+        }
+        
+        $('#raceHorsesTitle').text(`${meetName} • ${date.substr(0,4)}-${date.substr(4,2)}-${date.substr(6,2)} • 제 ${raceNo}경주 출전마`);
+        
+        // 정리 이벤트 등록
+        modal.one('hidden.bs.modal', function() {
+            $('#raceHorsesList').empty();
+            $('#raceHorsesTitle').text('출전마 리스트');
+        });
+        
+        // 새 Bootstrap 인스턴스로 모달 표시
+        const bsModal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        bsModal.show();
+        
+        // 로딩 상태
+        $('#raceHorsesLoading').show();
+        $('#raceHorsesContent').hide();
+        
+        $.ajax({
+            url: '/api/race-horses/',
+            data: { meet: meet, date: date, race_no: raceNo },
+            success: function(response) {
+                $('#raceHorsesLoading').hide();
+                if (response.success) {
+                    showRaceHorses(response.data, meet);
+                    $('#raceHorsesContent').show();
+                } else {
+                    $('#raceHorsesList').html(`<div class="col-12"><div class="alert alert-danger">${response.error}</div></div>`);
+                    $('#raceHorsesContent').show();
+                }
+            },
+            error: function() {
+                $('#raceHorsesLoading').hide();
+                $('#raceHorsesList').html(`<div class="col-12"><div class="alert alert-danger">서버 오류가 발생했습니다.</div></div>`);
+                $('#raceHorsesContent').show();
+            }
+        });
+    };
+
+    // 출전마 리스트 표시
+    function showRaceHorses(horses, meet) {
+        const container = $('#raceHorsesList');
+        container.empty();
+
+        if (horses.length === 0) {
+            container.html('<div class="col-12"><div class="alert alert-warning">출전마 정보가 없습니다.</div></div>');
+            return;
+        }
+
+        horses.forEach(horse => {
+            const card = createHorseCard(horse, meet);
+            container.append(card);
+        });
+    }
+
+    // 경주마 카드 생성
+    function createHorseCard(horse, meet) {
+        const ord = horse.ord || '-';
+        const weight = horse.wgHr || '-';
+        const winOdds = parseFloat(horse.winOdds || 0).toFixed(1);
+        const jockey = horse.jkName || '-';
+        const trainer = horse.trName || '-';
+        
+        return `
+        <div class="col-md-6 mb-3">
+            <div class="card h-100" style="cursor: pointer;" onclick="viewHorseDetail('${meet}', '${horse.hrNo}', '${horse.hrName}')">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">${horse.hrName}</h6>
+                        <span class="badge ${ord === '1' ? 'bg-success' : ord === '2' ? 'bg-info' : ord === '3' ? 'bg-warning' : 'bg-secondary'}">${ord}착</span>
+                    </div>
+                    <div class="small text-muted">
+                        <p class="mb-1"><i class="fas fa-user"></i> 기수: ${jockey}</p>
+                        <p class="mb-1"><i class="fas fa-user-tie"></i> 조교사: ${trainer}</p>
+                        <p class="mb-1"><i class="fas fa-weight"></i> 마체중: ${weight}</p>
+                        <p class="mb-0"><i class="fas fa-chart-line"></i> 단승배당: ${winOdds}</p>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-primary"><i class="fas fa-info-circle"></i> 클릭하면 상세정보를 볼 수 있습니다</small>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // 전역 함수 - 경주마 상세정보 보기
+    window.viewHorseDetail = function(meet, hrNo, hrName) {
+        const modal = $('#horseDetailModal');
+        const modalElement = modal.get(0);
+        
+        // 기존 이벤트 정리
+        modal.off();
+        
+        // 기존 Bootstrap 인스턴스 제거
+        const existingInstance = bootstrap.Modal.getInstance(modalElement);
+        if (existingInstance) {
+            existingInstance.dispose();
+        }
+        
+        $('#horseDetailTitle').text(`${hrName} 상세정보`);
+        
+        // 정리 이벤트 등록
+        modal.one('hidden.bs.modal', function() {
+            $('#horseDetailContent').empty();
+            $('#horseDetailTitle').text('경주마 상세정보');
+        });
+        
+        // 새 Bootstrap 인스턴스로 모달 표시
+        const bsModal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        bsModal.show();
+        
+        // 로딩 상태
+        $('#horseDetailLoading').show();
+        $('#horseDetailContent').hide();
+        
+        $.ajax({
+            url: '/api/horse-detail/',
+            data: { meet: meet, hr_no: hrNo, hr_name: hrName },
+            success: function(response) {
+                $('#horseDetailLoading').hide();
+                if (response.success && response.data.length > 0) {
+                    showHorseDetail(response.data[0]);
+                    $('#horseDetailContent').show();
+                } else {
+                    $('#horseDetailContent').html(`<div class="alert alert-danger">경주마 정보를 찾을 수 없습니다.</div>`);
+                    $('#horseDetailContent').show();
+                }
+            },
+            error: function() {
+                $('#horseDetailLoading').hide();
+                $('#horseDetailContent').html(`<div class="alert alert-danger">서버 오류가 발생했습니다.</div>`);
+                $('#horseDetailContent').show();
+            }
+        });
+    };
+
+    // 경주마 상세정보 표시
+    function showHorseDetail(horse) {
+        const content = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-horse"></i> 기본 정보</h6>
+                <table class="table table-sm">
+                    <tr><th>마명</th><td>${horse.hrName || '-'}</td></tr>
+                    <tr><th>마번</th><td>${horse.hrNo || '-'}</td></tr>
+                    <tr><th>성별</th><td>${horse.sex || '-'}</td></tr>
+                    <tr><th>연령</th><td>${horse.age || '-'}</td></tr>
+                    <tr><th>생년월일</th><td>${horse.birthday || '-'}</td></tr>
+                    <tr><th>국적</th><td>${horse.name || '-'}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-users"></i> 관계자 정보</h6>
+                <table class="table table-sm">
+                    <tr><th>조교사</th><td>${horse.trName || '-'}</td></tr>
+                    <tr><th>마주</th><td>${horse.owName || '-'}</td></tr>
+                    <tr><th>등급</th><td>${horse.rating || '-'}</td></tr>
+                </table>
+                
+                <h6 class="mt-3"><i class="fas fa-chart-bar"></i> 성적 정보</h6>
+                <table class="table table-sm">
+                    <tr><th>통산 출주</th><td>${horse.totCnt1 || '-'}</td></tr>
+                    <tr><th>통산 1착</th><td>${horse.win1 || '-'}</td></tr>
+                    <tr><th>통산 2착</th><td>${horse.win2 || '-'}</td></tr>
+                    <tr><th>통산 3착</th><td>${horse.win3 || '-'}</td></tr>
+                    <tr><th>통산 상금</th><td>${horse.totPrize || '-'}</td></tr>
+                </table>
+            </div>
+        </div>`;
+        
+        $('#horseDetailContent').html(content);
+    }
+
+    // 전역 함수 - 경주 예측 페이지로 이동
+    window.predictRace = function(date, raceNo) {
+        const meet = $('#meet').val();
+        const formattedDate = `${date.substr(0,4)}-${date.substr(4,2)}-${date.substr(6,2)}`;
+        
+        // 예측 페이지로 이동하면서 파라미터 전달
+        const predictionUrl = `/prediction/?meet=${meet}&date=${formattedDate}&race_no=${raceNo}`;
+        window.location.href = predictionUrl;
+    };
+});
+</script>
+{% endblock %}

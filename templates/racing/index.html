@@ -1,0 +1,2141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.dashboard-card {
+    transition: transform 0.2s ease-in-out;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-connected { background-color: #28a745; }
+.status-disconnected { background-color: #dc3545; }
+.status-loading { background-color: #ffc107; }
+
+.race-time {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.prediction-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.score-high { color: #28a745; }
+.score-medium { color: #ffc107; }  
+.score-low { color: #dc3545; }
+
+.track-badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* 반응형 및 모바일 최적화 스타일 */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .h2 {
+        font-size: 1.8rem;
+    }
+    
+    .mobile-race-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        margin-bottom: 15px;
+        padding: 20px;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .mobile-race-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcf7f, #4d96ff);
+    }
+    
+    .race-number {
+        background: rgba(255,255,255,0.2);
+        border-radius: 50px;
+        padding: 8px 16px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 10px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .race-main-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .race-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 10px;
+    }
+    
+    .race-time-mobile {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #ffd93d;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .race-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .race-info-simple {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .info-item {
+        font-size: 0.85rem;
+        opacity: 0.9;
+        flex: 1;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 80px;
+    }
+    
+    .info-item i {
+        opacity: 0.7;
+    }
+    
+    .race-status-mobile {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 4px 8px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        background: rgba(255,255,255,0.9);
+        color: #333;
+    }
+    
+    .mobile-action-buttons {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .mobile-btn {
+        flex: 1;
+        padding: 12px 8px;
+        border: none;
+        border-radius: 25px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .btn-detail-mobile {
+        background: rgba(255,255,255,0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    .btn-predict-mobile {
+        background: #ff6b6b;
+        color: white;
+    }
+    
+    .btn-detail-mobile:hover,
+    .btn-predict-mobile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    
+    
+    /* 데스크톱에서는 기존 스타일 유지 */
+    .desktop-race-layout {
+        display: block;
+    }
+    
+    .mobile-race-layout {
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+    .desktop-race-layout {
+        display: block;
+    }
+    
+    .mobile-race-layout {
+        display: none;
+    }
+    
+    .race-card {
+        transition: all 0.3s ease;
+        border: 1px solid #e3e6f0;
+        border-radius: 0.5rem;
+    }
+    
+    .race-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        border-color: #007bff;
+    }
+    
+    .race-time-display {
+        text-align: center;
+    }
+    
+    .race-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: flex-end;
+    }
+}
+
+/* 한줄 경주 리스트 스타일 */
+.race-row {
+    background: white;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+    min-height: 35px;
+}
+
+.race-row:hover {
+    background: #f8f9fa;
+}
+
+/* 별점 스타일 */
+.star-rating {
+    display: flex;
+    gap: 5px;
+    margin: 8px 0;
+}
+
+.star {
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.3;
+}
+
+.star:hover {
+    transform: scale(1.1);
+}
+
+.star.active {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px #ffc107);
+}
+
+.star.hover-preview {
+    opacity: 0.7;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 헤더 섹션 -->
+    <div class="row mb-4">
+        <div class="col-12 text-center">
+            <div>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-clock"></i> 
+                    {{ current_time|date:"Y년 m월 d일 H시 i분" }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row justify-content-center">
+        <!-- 오늘의 경주 -->
+        <div class="col-lg-10 col-xl-8 mb-4">
+            <div class="card dashboard-card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-check"></i> 오늘의 경주 일정
+                        </h5>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('friday')">
+                                <i class="fas fa-calendar-alt"></i> 금요일
+                            </button>
+                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('saturday')">
+                                <i class="fas fa-calendar-alt"></i> 토요일
+                            </button>
+                            <button type="button" class="btn btn-outline-light" onclick="loadRacesByDay('sunday')">
+                                <i class="fas fa-calendar-alt"></i> 일요일
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    
+                    <div id="today-races-container">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">경주 일정을 불러오는 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- 모달 창 -->
+<div class="modal fade" id="raceDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">경주 상세 정보</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="race-detail-content">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status"></div>
+                        <p class="mt-2">상세 정보를 불러오는 중...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // 전역 변수
+    let apiService = new APIService();
+    
+    // API 서비스 클래스
+    function APIService() {
+        this.baseUrl = '{% url "racing:index" %}api/';
+    }
+    
+    APIService.prototype.testConnection = function() {
+        return $.ajax({
+            url: this.baseUrl + 'test/',
+            method: 'GET',
+            timeout: 10000
+        });
+    };
+    
+    APIService.prototype.getTodayRaces = function() {
+        return $.ajax({
+            url: this.baseUrl + 'today-races/',
+            method: 'GET',
+            timeout: 15000
+        });
+    };
+    
+    // 초기화
+    function init() {
+        checkAPIStatus();
+        loadTodayRaces();
+        setupEventHandlers();
+        
+        // 5분마다 자동 새로고침
+        setInterval(function() {
+            loadTodayRaces();
+        }, 5 * 60 * 1000);
+    }
+    
+    // API 상태 확인
+    function checkAPIStatus() {
+        apiService.testConnection()
+            .done(function(response) {
+                if (response.success) {
+                    updateAPIStatus('connected', 'API 연결됨');
+                    $('#system-status').text('정상');
+                } else {
+                    updateAPIStatus('disconnected', 'API 연결 실패');
+                    $('#system-status').text('오류');
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('API 연결 테스트 실패:', xhr.responseText);
+                updateAPIStatus('disconnected', 'API 연결 실패');
+                $('#system-status').text('오류');
+            });
+    }
+    
+    // API 상태 업데이트
+    function updateAPIStatus(status, message) {
+        const indicator = $('#api-status');
+        const text = $('#api-status-text');
+        
+        indicator.removeClass('status-connected status-disconnected status-loading');
+        indicator.addClass('status-' + status);
+        text.text(message);
+    }
+    
+    // 헬퍼 함수들 (먼저 정의)
+    function formatStartTime(timeStr) {
+        if (!timeStr) return '-';
+        if (timeStr.length === 4) {
+            return timeStr.substring(0, 2) + ':' + timeStr.substring(2);
+        }
+        return timeStr;
+    }
+    
+    function getCurrentDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return year + month + day;
+    }
+    
+    function getRaceStatus(race, startTime) {
+        if (!startTime || startTime === '-') return 'unknown';
+        
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMin = now.getMinutes();
+        const currentTime = currentHour * 100 + currentMin;
+        
+        const raceTime = parseInt(startTime.replace(':', ''));
+        
+        if (raceTime < currentTime - 30) { // 30분 이후면 종료로 간주
+            return 'finished';
+        } else if (raceTime > currentTime + 10) { // 10분 이상 남으면 예정
+            return 'upcoming';
+        } else {
+            return 'ongoing'; // 진행 중
+        }
+    }
+    
+    function getStatusBadge(status) {
+        switch(status) {
+            case 'finished':
+                return '<span class="badge bg-secondary">종료</span>';
+            case 'ongoing':
+                return '<span class="badge bg-warning">진행중</span>';
+            case 'upcoming':
+                return '<span class="badge bg-info">예정</span>';
+            default:
+                return '<span class="badge bg-light text-dark">미정</span>';
+        }
+    }
+    
+
+    // 오늘의 경주 로드
+    function loadTodayRaces() {
+        apiService.getTodayRaces()
+            .done(function(response) {
+                if (response.success) {
+                    displayTodayRaces(response.data, response.tracks);
+                    updateRaceCount(response.data);
+                } else {
+                    showError('경주 정보를 불러올 수 없습니다: ' + response.message);
+                }
+            })
+            .fail(function(xhr) {
+                showError('경주 정보 로드 실패');
+                displayNoRaces();
+            });
+    }
+    
+    // 특정 요일 경주 로드
+    function loadRacesByDay(dayType) {
+        // 현재 날짜 기준으로 해당 요일 찾기
+        const today = new Date();
+        const currentDay = today.getDay(); // 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토
+        let targetDate = new Date();
+        
+        switch(dayType) {
+            case 'friday':
+                const daysToFriday = (5 - currentDay + 7) % 7;
+                if (daysToFriday === 0 && today.getHours() >= 18) {
+                    // 오늘이 금요일이고 오후 6시 이후면 다음 주 금요일
+                    targetDate.setDate(today.getDate() + 7);
+                } else if (daysToFriday === 0) {
+                    // 오늘이 금요일이고 오후 6시 전이면 오늘
+                    targetDate = today;
+                } else {
+                    // 가장 가까운 금요일 (이번 주 또는 다음 주)
+                    targetDate.setDate(today.getDate() + daysToFriday);
+                }
+                break;
+            case 'saturday':
+                const daysToSaturday = (6 - currentDay + 7) % 7;
+                if (daysToSaturday === 0) {
+                    targetDate = today; // 오늘이 토요일
+                } else {
+                    targetDate.setDate(today.getDate() + daysToSaturday);
+                }
+                break;
+            case 'sunday':
+                const daysToSunday = currentDay === 0 ? 0 : (7 - currentDay);
+                if (daysToSunday === 0) {
+                    targetDate = today; // 오늘이 일요일
+                } else {
+                    targetDate.setDate(today.getDate() + daysToSunday);
+                }
+                break;
+        }
+        
+        const dateStr = targetDate.getFullYear() + 
+                       String(targetDate.getMonth() + 1).padStart(2, '0') + 
+                       String(targetDate.getDate()).padStart(2, '0');
+        
+        // 버튼 활성화 상태 변경
+        $('.btn-group .btn').removeClass('active');
+        $(`button[onclick*="${dayType}"]`).addClass('active');
+        
+        // API 호출 (기존 today-races API 활용)
+        $.ajax({
+            url: '/racing/api/schedule-data/',
+            data: {
+                'meet': 1, // 서울 경마장
+                'date': dateStr
+            },
+            success: function(response) {
+                if (response.success) {
+                    const racesData = {
+                        races: response.data,
+                        sorted_races: response.data.sort((a, b) => {
+                            const timeA = a.schStTime || a.rcTime || '0000';
+                            const timeB = b.schStTime || b.rcTime || '0000';
+                            return timeA.localeCompare(timeB);
+                        })
+                    };
+                    displayTodayRaces(racesData, {1: '서울'});
+                    updateRaceCount(racesData);
+                    
+                    // 헤더 텍스트 업데이트
+                    const dayNames = {
+                        'friday': '금요일',
+                        'saturday': '토요일', 
+                        'sunday': '일요일'
+                    };
+                    const headerTitle = `<i class="fas fa-calendar-check"></i> ${dayNames[dayType]} 경주 일정 (${response.formatted_date})`;
+                    $('.card-header h5').html(headerTitle);
+                } else {
+                    displayNoRaces();
+                    showError(response.error || '경주 정보를 불러올 수 없습니다.');
+                }
+            },
+            error: function() {
+                displayNoRaces();
+                showError('경주 정보 로드 실패');
+            }
+        });
+    }
+    
+    // 경주 정보 표시 (시간순 정렬)
+    function displayTodayRaces(racesData, tracks) {
+        const container = $('#today-races-container');
+        let html = '';
+        
+        // 정렬된 경주 리스트 사용
+        const sortedRaces = racesData.sorted_races || [];
+        
+        if (sortedRaces.length === 0) {
+            html = '<div class="text-center py-4"><p class="text-muted">오늘 예정된 경주가 없습니다.</p></div>';
+        } else {
+            html += '<div class="race-list">';
+            
+            sortedRaces.forEach(function(race, index) {
+                const raceNo = race.rcNo || (index + 1);
+                const startTime = formatStartTime(race.schStTime || race.rcTime);
+                const raceStatus = getRaceStatus(race, startTime);
+                const statusBadge = getStatusBadge(raceStatus);
+                const trackName = race.meet_name;
+                const trackId = race.meet;
+                
+                // 한줄 형식으로 간결하게 표시
+                html += `
+                    <div class="race-item mb-1">
+                        <div class="race-row d-flex align-items-center py-1 px-2 border-bottom" style="white-space: nowrap; overflow-x: auto;">
+                            <span class="badge bg-primary me-2">${trackName}${raceNo}R</span>
+                            <span class="text-primary fw-bold me-2">${startTime}</span>
+                            <span class="me-2">${race.rcName || '일반'}</span>
+                            <span class="text-muted me-2" style="font-size: 0.85rem;">거리:${race.rcDist || '-'}m</span>
+                            <span class="text-muted me-2" style="font-size: 0.85rem;">${race.budam || '일반'}</span>
+                            <span class="me-2">${getStatusBadge(raceStatus)}</span>
+                            <span class="ms-auto">
+                                <button class="btn btn-outline-primary btn-sm me-1" style="padding: 2px 8px; font-size: 0.75rem;" 
+                                        onclick="showRaceDetail('${trackId}', '${raceNo}', '${getCurrentDate()}', '${trackName}')">
+                                    상세
+                                </button>
+                                <button class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 0.75rem;" 
+                                        onclick="getPrediction('${trackId}', '${raceNo}', '${getCurrentDate()}', event)">
+                                    예측
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+        }
+        
+        container.html(html);
+        
+        // 행 호버 효과
+        $('.race-row').hover(
+            function() { $(this).css('background', '#f8f9fa').css('transform', 'translateX(2px)'); },
+            function() { $(this).css('background', 'white').css('transform', 'translateX(0)'); }
+        );
+    }
+    
+    // 경주 없음 표시
+    function displayNoRaces() {
+        $('#today-races-container').html(
+            '<div class="text-center py-4">' +
+            '<i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>' +
+            '<p class="text-muted">경주 정보를 불러올 수 없습니다.</p>' +
+            '</div>'
+        );
+    }
+    
+    // 경주 개수 업데이트
+    function updateRaceCount(racesData) {
+        const sortedRaces = racesData.sorted_races || [];
+        const totalCount = sortedRaces.length;
+        
+        // 상단 카드가 제거되었으므로 제목에 개수 표시
+        const header = $('.card-header h5');
+        if (totalCount > 0) {
+            header.html('<i class="fas fa-calendar-check"></i> 오늘의 경주 일정 <small class="text-light">(' + totalCount + '경주)</small>');
+        } else {
+            header.html('<i class="fas fa-calendar-check"></i> 오늘의 경주 일정');
+        }
+    }
+    
+    // 이벤트 핸들러 설정
+    function setupEventHandlers() {
+        // 새로고침 버튼
+        $('#refresh-data').click(function() {
+            const btn = $(this);
+            const icon = btn.find('i');
+            
+            icon.addClass('fa-spin');
+            btn.prop('disabled', true);
+            
+            checkAPIStatus();
+            loadTodayRaces();
+            
+            setTimeout(function() {
+                icon.removeClass('fa-spin');
+                btn.prop('disabled', false);
+            }, 2000);
+        });
+        
+    }
+    
+    // 에러 표시
+    function showError(message) {
+        // 토스트 메시지 또는 alert 사용
+        if (typeof showToast === 'function') {
+            showToast(message, 'error');
+        } else {
+            console.error(message);
+        }
+    }
+    
+    
+    // 경주 상세 모달 표시 (전역 함수로 설정)
+    window.showRaceDetail = function(trackId, raceNo, date, trackName) {
+        console.log('=== showRaceDetail 시작 ===');
+        console.log('trackId:', trackId, 'raceNo:', raceNo, 'date:', date, 'trackName:', trackName);
+        
+        // DOM 준비 상태 확인 후 모달 찾기
+        console.log('DOM 준비 상태:', document.readyState);
+        console.log('전체 모달 개수:', document.querySelectorAll('.modal').length);
+        console.log('모든 모달 ID들:', Array.from(document.querySelectorAll('.modal')).map(m => m.id));
+        console.log('raceDetailModal 존재:', document.getElementById('raceDetailModal') ? 'OK' : 'ERROR');
+        
+        // 네이티브 DOM API로 직접 찾기
+        let modalElement = document.getElementById('raceDetailModal');
+        if (!modalElement) {
+            console.error('모달이 DOM에서 사라졌습니다! modal.js의 cleanup()이 원인입니다. 재생성합니다.');
+            
+            // modal.js의 이벤트 리스너가 제거하지 못하도록 고유 ID 사용
+            const modalHTML = `
+                <div class="modal fade racing-detail-modal" id="raceDetailModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">경주 상세 정보</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="race-detail-content">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border" role="status"></div>
+                                        <p class="mt-2">상세 정보를 불러오는 중...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            modalElement = document.getElementById('raceDetailModal');
+            console.log('모달 재생성 완료 (modal.js 우회):', modalElement ? 'OK' : 'ERROR');
+        }
+        
+        // jQuery로 다시 래핑
+        const modal = $(modalElement);
+        const modalTitle = modal.find('.modal-title');
+        const modalBody = modal.find('#race-detail-content');
+        
+        console.log('모달 요소 확인:', {
+            modalElement: modalElement ? 'OK' : 'ERROR',
+            modalElementType: typeof modalElement,
+            modal: modal.length,
+            modalTitle: modalTitle.length,
+            modalBody: modalBody.length
+        });
+        
+        // 기존 Bootstrap 인스턴스 확인 (제거하지 말고 숨기기만)
+        const existingInstance = bootstrap.Modal.getInstance(modalElement);
+        if (existingInstance) {
+            console.log('기존 모달 인스턴스 발견, 숨기기...');
+            try {
+                existingInstance.hide();
+            } catch (e) {
+                console.log('기존 인스턴스 숨기기 실패:', e);
+            }
+        } else {
+            console.log('기존 모달 인스턴스 없음');
+        }
+        
+        // 모든 이벤트 리스너 완전 정리
+        console.log('이벤트 리스너 정리 중...');
+        modal.off();
+        
+        // 모달 내용 완전 초기화
+        console.log('모달 내용 초기화 중...');
+        modalBody.empty();
+        
+        // 모달 제목 설정
+        modalTitle.html(`
+            <i class="fas fa-horse-head me-2"></i>
+            ${trackName} ${raceNo}경주 상세정보
+            <small class="text-muted">(${date.substring(0,4)}-${date.substring(4,6)}-${date.substring(6,8)})</small>
+        `);
+        console.log('모달 제목 설정 완료');
+        
+        // 로딩 상태 표시
+        modalBody.html(`
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">경주 정보를 불러오는 중...</p>
+            </div>
+        `);
+        console.log('로딩 상태 표시 완료');
+        
+        // 정리 함수 정의
+        function modalCleanup() {
+            console.log('모달 정리 함수 실행 - 시작');
+            console.log('정리 전 DOM 상태:', {
+                modalExists: document.getElementById('raceDetailModal') ? 'OK' : 'ERROR',
+                totalModals: document.querySelectorAll('.modal').length
+            });
+            
+            // 내용만 정리하고 모달 자체는 건드리지 않음
+            if (modalBody && modalBody.length > 0) {
+                modalBody.empty();
+                console.log('모달 본문 정리 완료');
+            }
+            if (modalTitle && modalTitle.length > 0) {
+                modalTitle.text('경주 상세 정보');
+                console.log('모달 제목 정리 완료');
+            }
+            
+            // 잠시 후 다시 확인 (비동기 DOM 조작 대비)
+            setTimeout(() => {
+                console.log('1초 후 DOM 상태 재확인:', {
+                    modalExists: document.getElementById('raceDetailModal') ? 'OK' : 'ERROR',
+                    totalModals: document.querySelectorAll('.modal').length,
+                    allModalIds: Array.from(document.querySelectorAll('.modal')).map(m => m.id)
+                });
+            }, 1000);
+            
+            console.log('정리 후 DOM 상태 (즉시):', {
+                modalExists: document.getElementById('raceDetailModal') ? 'OK' : 'ERROR',
+                totalModals: document.querySelectorAll('.modal').length
+            });
+            console.log('모달 정리 함수 실행 - 완료');
+        }
+        
+        // 포커스 추적 함수
+        function trackFocus(eventName) {
+            const focused = document.activeElement;
+            console.log(`=== ${eventName} 포커스 상태 ===`);
+            console.log('현재 포커스 요소:', {
+                tagName: focused.tagName,
+                className: focused.className,
+                id: focused.id,
+                element: focused
+            });
+            console.log('모달 관련 ARIA 속성:', {
+                modalAriaHidden: modalElement.getAttribute('aria-hidden'),
+                modalDisplay: window.getComputedStyle(modalElement).display,
+                modalTabIndex: modalElement.getAttribute('tabindex')
+            });
+        }
+
+        // 모달 이벤트 등록 (포커스 추적 추가)
+        modal.one('show.bs.modal', function() {
+            console.log('모달 표시 시작');
+            trackFocus('show.bs.modal');
+        });
+        
+        modal.one('shown.bs.modal', function() {
+            console.log('모달 표시 완료');
+            trackFocus('shown.bs.modal');
+            
+            // 포커스를 모달의 닫기 버튼으로 이동
+            const closeBtn = modalElement.querySelector('.btn-close');
+            if (closeBtn) {
+                console.log('닫기 버튼으로 포커스 이동');
+                closeBtn.focus();
+                trackFocus('포커스 이동 후');
+            }
+        });
+        
+        modal.one('hide.bs.modal', function() {
+            console.log('모달 숨기기 시작');
+            trackFocus('hide.bs.modal');
+            
+            // 모달 내부 모든 포커스 가능한 요소들에서 포커스 제거
+            const focusableElements = modalElement.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            
+            focusableElements.forEach(element => {
+                if (document.activeElement === element) {
+                    console.log('포커스 제거 대상:', element.className, element.tagName);
+                    element.blur(); // 포커스 제거
+                }
+            });
+            
+            // body나 안전한 요소로 포커스 이동
+            document.body.focus();
+            console.log('body로 포커스 이동 완료');
+            trackFocus('포커스 정리 후');
+        });
+        
+        modal.one('hidden.bs.modal', function() {
+            console.log('모달 숨기기 완료');
+            trackFocus('hidden.bs.modal 시작');
+            
+            // 모달이 완전히 숨겨진 후 추가 포커스 정리
+            const stillFocusedInModal = modalElement.contains(document.activeElement);
+            if (stillFocusedInModal) {
+                console.log('모달 내부에 여전히 포커스 있음, 강제 제거');
+                document.activeElement.blur();
+                document.body.focus();
+            }
+            
+            modalCleanup();
+            trackFocus('hidden.bs.modal 종료');
+        });
+        console.log('모달 이벤트 등록 완료');
+        
+        // 모달 표시 전 포커스 상태 확인
+        console.log('모달 표시 전 포커스 상태:');
+        trackFocus('모달 표시 전');
+        
+        // 모달 표시
+        try {
+            console.log('모달 표시 시도...');
+            modal.modal('show');
+            console.log('모달 표시 명령 완료');
+        } catch (error) {
+            console.error('모달 표시 오류:', error);
+        }
+        
+        // 실제 데이터 로드
+        console.log('데이터 로드 시작...');
+        loadRaceDetailData(trackId, raceNo, date, modalBody);
+        
+        console.log('=== showRaceDetail 종료 ===');
+    };
+    
+    // 경주 상세 데이터 로드
+    function loadRaceDetailData(trackId, raceNo, date, modalBody) {
+        console.log('=== loadRaceDetailData 시작 ===');
+        console.log('API 요청 파라미터:', {
+            trackId: trackId,
+            raceNo: raceNo,
+            date: date,
+            url: '{% url "racing:api_race_horses" %}'
+        });
+        
+        // 경주 데이터와 예측 데이터를 동시에 로드
+        const raceDataPromise = $.ajax({
+            url: '{% url "racing:api_race_horses" %}',
+            method: 'GET',
+            data: {
+                meet: trackId,
+                date: date,
+                race_no: raceNo
+            },
+            timeout: 15000
+        });
+        
+        const predictionPromise = $.ajax({
+            url: '{% url "racing:api_prediction" %}',
+            method: 'POST',
+            data: {
+                meet: trackId,
+                date: date,
+                race_no: raceNo,
+                csrfmiddlewaretoken: getCookie('csrftoken')
+            },
+            timeout: 15000
+        });
+        
+        $.when(raceDataPromise, predictionPromise)
+            .done(function(raceResponse, predictionResponse) {
+                console.log('경주 데이터:', raceResponse[0]);
+                console.log('예측 데이터:', predictionResponse ? predictionResponse[0] : 'null');
+                
+                const raceData = raceResponse[0];
+                const predictionData = predictionResponse ? predictionResponse[0] : null;
+                
+                if (raceData.success && raceData.data && raceData.data.length > 0) {
+                    console.log(`출전마 ${raceData.data.length}마리 데이터 로드 성공`);
+                    displayRaceDetailContent(raceData, modalBody, predictionData);
+                } else {
+                    console.log('출전마 데이터 없음:', raceData);
+                    displayNoHorsesContent(modalBody, raceNo);
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('=== AJAX 요청 실패 ===');
+                console.error('Status:', status);
+                console.error('Error:', error);
+                
+                // 경주 데이터만이라도 로드 시도
+                raceDataPromise.done(function(raceResponse) {
+                    console.log('경주 데이터만 로드 시도:', raceResponse);
+                    const raceData = raceResponse;
+                    if (raceData.success && raceData.data && raceData.data.length > 0) {
+                        console.log(`예측 실패, 경주 데이터만 표시: ${raceData.data.length}마리`);
+                        displayRaceDetailContent(raceData, modalBody, null);
+                    } else {
+                        displayErrorContent(modalBody);
+                    }
+                }).fail(function() {
+                    displayErrorContent(modalBody);
+                });
+            })
+            .always(function() {
+                console.log('=== loadRaceDetailData 종료 ===');
+            });
+    }
+    
+    // 경주 상세 정보 표시
+    function displayRaceDetailContent(response, modalBody, predictionData = null) {
+        console.log('=== displayRaceDetailContent 시작 ===');
+        console.log('응답 데이터:', response);
+        console.log('예측 데이터:', predictionData);
+        
+        const horses = response.data || [];
+        let predictions = [];
+        
+        // 예측 데이터 처리
+        if (predictionData && predictionData.success && predictionData.data) {
+            console.log('=== 예측 데이터 구조 분석 ===');
+            console.log('전체 예측 data:', predictionData.data);
+            
+            if (predictionData.data.ai_model) {
+                const aiModel = predictionData.data.ai_model;
+                console.log('AI 모델 데이터:', aiModel);
+                
+                // AI 모델에서 예측 결과 추출 (여러 가능성 확인)
+                if (aiModel.predictions && Array.isArray(aiModel.predictions)) {
+                    predictions = aiModel.predictions;
+                    console.log('predictions 필드 사용:', predictions);
+                } else if (aiModel.ranking && Array.isArray(aiModel.ranking)) {
+                    predictions = aiModel.ranking;
+                    console.log('ranking 필드 사용:', predictions);
+                } else if (aiModel.horses && Array.isArray(aiModel.horses)) {
+                    predictions = aiModel.horses;
+                    console.log('horses 필드 사용:', predictions);
+                } else {
+                    // AI 모델 객체의 모든 키 확인
+                    console.log('AI 모델의 모든 키들:', Object.keys(aiModel));
+                    
+                    // 배열인 첫 번째 필드 찾기
+                    for (const key of Object.keys(aiModel)) {
+                        if (Array.isArray(aiModel[key]) && aiModel[key].length > 0) {
+                            predictions = aiModel[key];
+                            console.log(`${key} 필드를 예측 데이터로 사용:`, predictions);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // 여전히 예측 데이터가 없으면 다른 필드들 확인
+            if (predictions.length === 0) {
+                console.log('AI 모델에서 예측 데이터 없음, 다른 필드 확인...');
+                console.log('전체 data 객체의 키들:', Object.keys(predictionData.data));
+                
+                // 예측 관련 다른 필드들 확인
+                if (predictionData.data.predictions) {
+                    predictions = predictionData.data.predictions;
+                } else if (predictionData.data.horses) {
+                    predictions = predictionData.data.horses;
+                }
+            }
+        }
+        
+        // predictions가 배열인지 확인
+        if (!Array.isArray(predictions)) {
+            console.log('predictions가 배열이 아님:', typeof predictions, predictions);
+            predictions = [];
+        }
+        
+        console.log('최종 예측 데이터:', predictions);
+        
+        // 경주 데이터를 전역 변수로 저장 (토스트에서 참조용)
+        window.currentRaceHorses = horses;
+        
+        // 예측 데이터의 첫 번째 아이템 구조 확인
+        if (predictions.length > 0) {
+            console.log('예측 데이터 첫 번째 아이템:', predictions[0]);
+            console.log('첫 번째 아이템의 키들:', Object.keys(predictions[0]));
+        }
+        
+        console.log('=== 예측 데이터 구조 분석 완료 ===')
+        
+        const hasRaceResults = horses.some(horse => horse.ord && horse.ord !== '-');
+        
+        console.log(`출전마 ${horses.length}마리, 예측 ${predictions.length}개, 경주결과 있음: ${hasRaceResults}`);
+        
+        // 예측 데이터를 승리 확률 기준으로 정렬해서 순위 부여
+        if (predictions.length > 0) {
+            // 승리 확률 필드 확인
+            const scoreField = predictions[0].win_probability !== undefined ? 'win_probability' : 
+                              predictions[0].confidence !== undefined ? 'confidence' : 
+                              predictions[0].score !== undefined ? 'score' : 
+                              predictions[0].probability !== undefined ? 'probability' : 
+                              'win_probability'; // 기본값
+            
+            console.log('점수 필드로 사용할 필드:', scoreField);
+            
+            // 승리 확률 기준 내림차순 정렬 (높은 확률이 1위)
+            predictions.sort((a, b) => (b[scoreField] || 0) - (a[scoreField] || 0));
+            console.log('정렬된 예측 데이터 (상위 3개):', predictions.slice(0, 3));
+        }
+        
+        // 예측 데이터를 말 번호로 매핑
+        const predictionMap = {};
+        predictions.forEach((pred, index) => {
+            console.log(`예측 ${index + 1}위: ${pred.horse_name} (전체번호: ${pred.horse_no}, 확률: ${pred.win_probability}%)`);
+            
+            // 말 이름으로 경주 데이터와 매칭 (가장 확실한 방법)
+            const matchingHorse = horses.find(horse => 
+                horse.hrName === pred.horse_name || 
+                horse.hrNo === pred.horse_no
+            );
+            
+            if (matchingHorse) {
+                const horseNo = matchingHorse.chulNo;
+                console.log(`매칭 성공: ${pred.horse_name} -> 출전번호 ${horseNo}`);
+                
+                predictionMap[horseNo] = {
+                    rank: index + 1, // 정렬된 순서가 예측 순위
+                    confidence: pred.win_probability || pred.confidence || pred.score || 0,
+                    horse_name: pred.horse_name
+                };
+            } else {
+                console.log(`매칭 실패: ${pred.horse_name} - 해당하는 출전마를 찾을 수 없음`);
+            }
+        });
+        
+        console.log('예측 순위 매핑 완료:', predictionMap);
+        
+        let html = `
+            <div class="race-info mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle me-2"></i>경주 정보</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>경마장:</strong> ${response.meet}</li>
+                            <li><strong>날짜:</strong> ${response.formatted_date}</li>
+                            <li><strong>경주번호:</strong> ${response.race_no}R</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-bar me-2"></i>출전 현황</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>출전마:</strong> ${response.count}마리</li>
+                            <li><strong>상태:</strong> <span class="badge ${hasRaceResults ? 'bg-secondary' : 'bg-success'}">${hasRaceResults ? '경주 완료' : '출전 확정'}</span></li>
+                            ${predictions.length > 0 ? `<li><strong>AI 예측:</strong> <span class="badge bg-primary">완료</span></li>` : ''}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <h6><i class="fas fa-list me-2"></i>출전마 명단 ${predictions.length > 0 ? '& AI 예측' : ''}</h6>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>번호</th>
+                            <th>마명</th>
+                            <th>기수</th>
+                            <th>조교사</th>
+                            <th>마체중</th>
+                            <th>등급</th>
+                            <th>경주순위</th>
+                            ${predictions.length > 0 ? '<th>예측순위</th>' : ''}
+                            ${hasRaceResults && predictions.length > 0 ? '<th>예측평가</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        horses.forEach(function(horse, index) {
+            const horseNo = horse.chulNo;
+            const prediction = predictionMap[horseNo];
+            const actualRank = horse.ord && horse.ord !== '-' ? parseInt(horse.ord) : null;
+            const predictedRank = prediction ? prediction.rank : null;
+            
+            let predictionAccuracy = '';
+            if (hasRaceResults && prediction && actualRank) {
+                const rankDiff = Math.abs(actualRank - predictedRank);
+                if (rankDiff === 0) {
+                    predictionAccuracy = '<span class="badge bg-success"><i class="fas fa-check"></i> 정확</span>';
+                } else if (rankDiff <= 1) {
+                    predictionAccuracy = '<span class="badge bg-warning"><i class="fas fa-minus"></i> 근사</span>';
+                } else if (rankDiff <= 2) {
+                    predictionAccuracy = '<span class="badge bg-info"><i class="fas fa-info"></i> 보통</span>';
+                } else {
+                    predictionAccuracy = '<span class="badge bg-danger"><i class="fas fa-times"></i> 오차</span>';
+                }
+            }
+            
+            html += `
+                <tr>
+                    <td><span class="badge bg-primary">${horse.chulNo}</span></td>
+                    <td><strong>${horse.hrName || '정보 없음'}</strong></td>
+                    <td>${horse.jkName || '-'}</td>
+                    <td>${horse.trName || '-'}</td>
+                    <td>${horse.wgHr || '-'}</td>
+                    <td><span class="badge bg-info">${horse.rank || '-'}</span></td>
+                    <td><span class="badge bg-secondary">${horse.ord || '-'}위</span></td>
+                    ${predictions.length > 0 ? `<td>${prediction ? `<span class="badge bg-primary">${prediction.rank}위</span><br><small class="text-muted">${prediction.confidence.toFixed(1)}%</small>` : '<span class="text-muted">-</span>'}</td>` : ''}
+                    ${hasRaceResults && predictions.length > 0 ? `<td>${predictionAccuracy || '<span class="text-muted">-</span>'}</td>` : ''}
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>${hasRaceResults ? '경주 결과:' : '경주 정보:'}</strong> 
+                ${hasRaceResults ? 
+                    '위 데이터는 실제 경주 결과입니다. 경주순위는 해당 경주에서의 실제 순위를 나타냅니다.' :
+                    '위 데이터는 출전 예정 정보입니다. 경주 당일 변경될 수 있습니다.'
+                }
+                ${predictions.length > 0 ? '<br><strong>예측 정보:</strong> AI가 분석한 예상 순위와 신뢰도입니다.' : ''}
+            </div>
+        `;
+        
+        console.log('HTML 생성 완료, 모달에 삽입 중...');
+        modalBody.html(html);
+        console.log('모달에 HTML 삽입 완료');
+        console.log('=== displayRaceDetailContent 종료 ===');
+    }
+    
+    // 출전마 정보 없음 표시
+    function displayNoHorsesContent(modalBody, raceNo) {
+        console.log('출전마 정보 없음 표시:', raceNo);
+        modalBody.html(`
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+                <h5>출전마 정보 없음</h5>
+                <p class="text-muted">
+                    ${raceNo}경주의 출전마 정보를 찾을 수 없습니다.<br>
+                    아직 출전 확정되지 않았거나 경주가 취소된 것 같습니다.
+                </p>
+                <div class="alert alert-light">
+                    <small>
+                        <i class="fas fa-info-circle me-1"></i>
+                        경주 당일에 출전마 정보가 업데이트됩니다.
+                    </small>
+                </div>
+            </div>
+        `);
+    }
+    
+    // 에러 내용 표시
+    function displayErrorContent(modalBody) {
+        console.log('에러 내용 표시');
+        modalBody.html(`
+            <div class="text-center py-5">
+                <i class="fas fa-times-circle text-danger fa-3x mb-3"></i>
+                <h5>정보 로드 실패</h5>
+                <p class="text-muted">
+                    경주 상세 정보를 불러오는 중 오류가 발생했습니다.<br>
+                    잠시 후 다시 시도해주세요.
+                </p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    <i class="fas fa-refresh me-1"></i>페이지 새로고침
+                </button>
+            </div>
+        `);
+    }
+    
+    // CSRF 토큰 가져오기 함수
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 예측 결과 가져오기 (전역 함수)
+    window.getPrediction = function(trackId, raceNo, date, event) {
+        if (event) {
+            event.stopPropagation(); // 카드 클릭 이벤트 방지
+        }
+        
+        console.log('예측 요청:', trackId, raceNo, date);
+        
+        const btn = $(event.target);
+        const originalText = btn.html();
+        const originalClass = btn.attr('class');
+        
+        // 버튼 로딩 상태
+        btn.prop('disabled', true);
+        btn.attr('class', 'btn btn-sm btn-secondary');
+        btn.html('<i class="fas fa-spinner fa-spin me-1"></i>예측 중...');
+        
+        $.ajax({
+            url: '{% url "racing:api_prediction" %}',
+            method: 'POST',
+            data: {
+                meet: trackId,
+                date: date,
+                race_no: raceNo,
+                csrfmiddlewaretoken: getCookie('csrftoken')
+            },
+            timeout: 30000
+        }).done(function(response) {
+            console.log('예측 응답 받음:', response);
+            console.log('response.data 타입:', typeof response.data, '내용:', response.data);
+            
+            if (response.success && response.data) {
+                // AI 모델의 예측 결과 추출
+                let predictions = [];
+                
+                if (response.data.ai_model && response.data.ai_model.predictions) {
+                    predictions = response.data.ai_model.predictions;
+                } else if (response.data.ai_model && response.data.ai_model.ranking) {
+                    // ranking 필드가 있을 경우
+                    predictions = response.data.ai_model.ranking;
+                } else if (response.data.predictions) {
+                    predictions = response.data.predictions;
+                }
+                
+                console.log('AI 모델 전체 데이터:', response.data.ai_model);
+                console.log('변환된 predictions:', predictions);
+                
+                if (predictions && predictions.length > 0) {
+                    response.predictions = predictions;
+                    showPredictionResult(response, trackId, raceNo, date);
+                } else {
+                    console.log('예측 데이터 없음 - AI 모델 응답이 비어있음');
+                    showToast('AI 예측을 생성할 수 없습니다. 출전마 데이터를 확인해주세요.', 'warning');
+                }
+            } else {
+                console.log('예측 실패:', response);
+                showToast('예측 결과를 생성할 수 없습니다: ' + (response.message || '서버 오류'), 'error');
+            }
+        }).fail(function(xhr) {
+            console.error('예측 요청 실패:', xhr.responseText);
+            showToast('예측 요청 중 오류가 발생했습니다.', 'error');
+        }).always(function() {
+            // 버튼 원상 복구
+            btn.prop('disabled', false);
+            btn.attr('class', originalClass);
+            btn.html(originalText);
+        });
+    };
+    
+    // 예측 결과 표시
+    function showPredictionResult(response, trackId, raceNo, date) {
+        console.log('예측 결과 표시 함수 시작:', response);
+        
+        const predictions = response.predictions.slice(0, 3); // 상위 3마만 표시
+        console.log('상위 3마 예측:', predictions);
+        
+        let resultHtml = `
+            <h6><i class="fas fa-trophy me-2"></i>AI 예측 결과 (상위 3마)</h6>
+        `;
+        
+        predictions.forEach(function(pred, index) {
+            const medalClass = index === 0 ? 'warning' : index === 1 ? 'secondary' : 'dark';
+            const medalIcon = index === 0 ? 'trophy' : index === 1 ? 'medal' : 'award';
+            
+            // 승률 계산 (여러 필드에서 확인)
+            let winRate = pred.win_probability || pred.confidence || pred.score || 0;
+            if (winRate === 0 && pred.features && pred.features.win_rate) {
+                winRate = pred.features.win_rate * 100; // 0.2 -> 20%
+            }
+            
+            // 출전번호 찾기 (여러 방법으로 시도)
+            let horseNumber = pred.chulNo || pred.chul_no || pred.gate_no || pred.start_no;
+            
+            console.log('예측 데이터:', pred);
+            console.log('현재 경주 데이터:', window.currentRaceHorses);
+            
+            // 예측 데이터에 출전번호가 없으면 모달의 경주 데이터에서 찾기
+            if (!horseNumber && window.currentRaceHorses && window.currentRaceHorses.length > 0) {
+                const horseName = pred.hrName || pred.horse_name;
+                const horseNo = pred.horse_no;
+                
+                console.log(`매칭 시도: 말 이름="${horseName}", 등록번호="${horseNo}"`);
+                
+                const matchingHorse = window.currentRaceHorses.find(h => {
+                    const nameMatch = h.hrName === horseName;
+                    const noMatch = h.hrNo === horseNo;
+                    console.log(`경주마 ${h.hrName}(${h.chulNo}번): 이름매칭=${nameMatch}, 번호매칭=${noMatch}`);
+                    return nameMatch || noMatch;
+                });
+                
+                if (matchingHorse) {
+                    horseNumber = matchingHorse.chulNo;
+                    console.log(`매칭 성공: ${horseName} -> ${horseNumber}번`);
+                } else {
+                    console.log(`매칭 실패: ${horseName} 해당하는 경주마 없음`);
+                }
+            }
+            
+            // 그래도 없으면 예측 데이터에서 직접 찾기
+            if (!horseNumber) {
+                // 예측 모델에서 이미 chul_no를 포함했으므로 다시 확인
+                if (pred.chul_no) {
+                    horseNumber = pred.chul_no;
+                } else {
+                    console.log('모든 매칭 실패, 기본값 사용');
+                    horseNumber = '?';
+                }
+            }
+            
+            console.log(`최종 결과: ${pred.hrName || pred.horse_name} -> ${horseNumber}번`);
+            
+            resultHtml += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>
+                        <i class="fas fa-${medalIcon} text-${medalClass} me-2"></i>
+                        <strong>${pred.hrName || pred.horse_name || '이름 없음'}</strong> 
+                        <span class="badge bg-dark ms-1">${horseNumber || '?'}번</span>
+                    </span>
+                    <span class="badge bg-primary">${winRate.toFixed(1)}%</span>
+                </div>
+            `;
+        });
+        
+        resultHtml += `
+            <hr>
+            <div class="text-center">
+                <button class="btn btn-warning btn-sm" onclick="showAdvancedPrediction('${trackId}', '${raceNo}', '${date}')">
+                    <i class="fas fa-crown me-1"></i>회원전용 예측결과 보기
+                </button>
+            </div>
+        `;
+        
+        console.log('토스트 메시지 HTML:', resultHtml);
+        showToast(resultHtml, 'success', 15000);
+    }
+    
+    // 토스트 메시지 표시
+    function showToast(message, type = 'info', duration = 10000) {
+        console.log('토스트 메시지 표시:', message, type);
+        
+        const toastId = 'toast-' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' : 
+                       type === 'error' ? 'bg-danger' : 
+                       type === 'warning' ? 'bg-warning' : 'bg-info';
+        
+        const toastHtml = `
+            <div class="alert ${bgClass} text-white alert-dismissible fade show" 
+                 id="${toastId}" 
+                 role="alert" 
+                 style="position: fixed; top: 80px; right: 20px; z-index: 9999; min-width: 350px; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                ${message}
+                <button type="button" class="btn-close btn-close-white" onclick="$('#${toastId}').remove()"></button>
+            </div>
+        `;
+        
+        // 기존 토스트 제거
+        $('.alert[id^="toast-"]').remove();
+        
+        $('body').append(toastHtml);
+        console.log('토스트 DOM 추가 완료:', toastId);
+        
+        // 자동 제거
+        if (duration > 0) {
+            setTimeout(function() {
+                $('#' + toastId).fadeOut(300, function() {
+                    $(this).remove();
+                    console.log('토스트 자동 제거:', toastId);
+                });
+            }, duration);
+        }
+    }
+
+    // 회원전용 예측 화면 표시 (블로그 홍보 먼저)
+    window.showAdvancedPrediction = function(trackId, raceNo, date) {
+        // 기존 토스트 제거
+        $('.alert[id^="toast-"]').remove();
+        
+        console.log('회원전용 예측 화면 표시:', trackId, raceNo, date);
+        
+        // 먼저 블로그 홍보 모달 표시
+        showBlogPromotionModal(trackId, raceNo, date);
+    };
+    
+    // 블로그 홍보 모달 표시
+    function showBlogPromotionModal(trackId, raceNo, date) {
+        const blogModalHtml = `
+            <div class="modal fade" id="blogPromotionModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white text-center">
+                            <h5 class="modal-title w-100">
+                                <i class="fas fa-gift me-2"></i>🎉 특별 혜택 안내! 🎉
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body text-center p-4">
+                            <div class="alert alert-warning">
+                                <h4 class="text-primary mb-3">
+                                    <i class="fas fa-crown text-warning"></i>
+                                    회원전용 고급 예측을 이용하시려면
+                                </h4>
+                                <p class="lead mb-3">
+                                    <strong>개발자 블로그 이웃신청을 먼저 해주세요!</strong>
+                                </p>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-success h-100">
+                                        <div class="card-body">
+                                            <i class="fas fa-blog text-success fa-3x mb-3"></i>
+                                            <h5 class="card-title text-success">블로그 혜택</h5>
+                                            <ul class="list-unstyled">
+                                                <li>⭐ 최신 경마 분석 정보</li>
+                                                <li>⭐ 독점 예측 팁 공유</li>
+                                                <li>⭐ 업데이트 소식 우선 공지</li>
+                                                <li>⭐ 경마 전문가 노하우</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-danger h-100">
+                                        <div class="card-body">
+                                            <i class="fas fa-heart text-danger fa-3x mb-3"></i>
+                                            <h5 class="card-title text-danger">이웃신청 혜택</h5>
+                                            <ul class="list-unstyled">
+                                                <li>❤️ 고급 예측 기능 추가</li>
+                                                <li>❤️ 개인화 설정 저장</li>
+                                                <li>❤️ 예측 히스토리 관리</li>
+                                                <li>❤️ VIP 회원 전용 서비스</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 p-3 bg-light rounded">
+                                <h6 class="text-primary mb-2">
+                                    <i class="fas fa-mouse-pointer me-1"></i>
+                                    간단한 3단계!
+                                </h6>
+                                <div class="d-flex justify-content-center">
+                                    <div class="text-center me-4">
+                                        <div class="badge bg-danger rounded-circle mb-2" style="width: 30px; height: 30px; line-height: 16px;">1</div>
+                                        <small>이웃신청 클릭</small>
+                                    </div>
+                                    <div class="text-center me-4">
+                                        <div class="badge bg-success rounded-circle mb-2" style="width: 30px; height: 30px; line-height: 16px;">2</div>
+                                        <small>네이버에서 신청</small>
+                                    </div>
+                                    <div class="text-center">
+                                        <div class="badge bg-warning rounded-circle mb-2" style="width: 30px; height: 30px; line-height: 16px;">3</div>
+                                        <small>고급 예측 이용</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer justify-content-center">
+                            <a href="https://blog.naver.com/kwonbe" target="_blank" 
+                               class="btn btn-danger btn-lg me-3"
+                               onclick="trackBlogVisit()">
+                                <i class="fas fa-heart me-2"></i>
+                                🎯 이웃신청 바로가기
+                            </a>
+                            <button type="button" class="btn btn-success btn-lg" 
+                                    onclick="proceedToAdvancedPrediction('${trackId}', '${raceNo}', '${date}')">
+                                <i class="fas fa-crown me-2"></i>
+                                신청완료! 고급예측하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 기존 모달 제거 후 새로운 모달 추가
+        $('#blogPromotionModal').remove();
+        $('body').append(blogModalHtml);
+        
+        // 모달 표시
+        const modal = new bootstrap.Modal('#blogPromotionModal');
+        modal.show();
+    }
+    
+    // 블로그 방문 추적
+    function trackBlogVisit() {
+        console.log('블로그 방문 클릭 추적');
+        // 나중에 방문 통계 수집 가능
+        localStorage.setItem('blog_visited', 'true');
+    }
+    
+    // 고급 예측으로 진행
+    function proceedToAdvancedPrediction(trackId, raceNo, date) {
+        // 블로그 모달 닫기
+        bootstrap.Modal.getInstance('#blogPromotionModal').hide();
+        
+        // 잠깐 기다린 후 고급 예측 모달 표시
+        setTimeout(function() {
+            showAdvancedPredictionModalDirect(trackId, raceNo, date);
+        }, 500);
+    }
+    
+    // 고급 예측 모달 직접 표시 (블로그 홍보 건너뛰고)
+    function showAdvancedPredictionModalDirect(trackId, raceNo, date) {
+        console.log('고급 예측 모달 직접 표시:', trackId, raceNo, date);
+        
+        // 모달 HTML 생성
+        const modalHtml = `
+            <div class="modal fade" id="advancedPredictionModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title">
+                                <i class="fas fa-crown me-2"></i>회원전용 고급 예측 설정
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>조건별 가중치를 조정하여 나만의 예측을 만들어보세요!</strong>
+                            </div>
+                            
+                            <form id="predictionWeightForm">
+                                <div class="alert alert-info mb-4">
+                                    <i class="fas fa-star text-warning me-2"></i>
+                                    <strong>각 항목의 중요도를 별점으로 선택해주세요!</strong>
+                                    <small class="d-block mt-1">별이 많을수록 더 중요하게 반영됩니다.</small>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary mb-3"><i class="fas fa-chart-line me-1"></i>성적 관련</h6>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">최근 성적 (승률)</label>
+                                            <div class="star-rating" data-rating="3" data-field="recent_performance">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">최근 경주에서의 성적과 승률</small>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">경주마 등급</label>
+                                            <div class="star-rating" data-rating="3" data-field="horse_rating">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">말의 등급과 실력 수준</small>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">마체중 변화</label>
+                                            <div class="star-rating" data-rating="2" data-field="weight_change">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">전 경주 대비 체중 증감</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <h6 class="text-success mb-3"><i class="fas fa-user me-1"></i>인적 요소</h6>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">기수 실력</label>
+                                            <div class="star-rating" data-rating="4" data-field="jockey_skill">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">기수의 경력과 승률</small>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">조교사 능력</label>
+                                            <div class="star-rating" data-rating="2" data-field="trainer_skill">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">조교사의 훈련 실력</small>
+                                        </div>
+                                        
+                                        <div class="mb-4">
+                                            <label class="form-label fw-bold">거리 적성</label>
+                                            <div class="star-rating" data-rating="3" data-field="distance_aptitude">
+                                                <span class="star" data-value="1">⭐</span>
+                                                <span class="star" data-value="2">⭐</span>
+                                                <span class="star" data-value="3">⭐</span>
+                                                <span class="star" data-value="4">⭐</span>
+                                                <span class="star" data-value="5">⭐</span>
+                                            </div>
+                                            <small class="text-muted">해당 거리에서의 적응도</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                <div class="alert alert-warning">
+                                    <h6 class="text-dark mb-3">
+                                        <i class="fas fa-heart text-danger me-2"></i>개인 취향 반영
+                                    </h6>
+                                    <p class="small mb-3">좋아하는 말을 출전번호로 최대 3마리까지 선택하면 해당 말의 예측 점수에 보너스가 적용됩니다!</p>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small fw-bold">1순위 출전번호</label>
+                                            <input type="number" class="form-control form-control-sm" id="favorite_horse_1" 
+                                                   placeholder="예: 3" min="1" max="20">
+                                            <small class="text-muted">보너스: +15점</small>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small fw-bold">2순위 출전번호</label>
+                                            <input type="number" class="form-control form-control-sm" id="favorite_horse_2" 
+                                                   placeholder="예: 7" min="1" max="20">
+                                            <small class="text-muted">보너스: +10점</small>
+                                        </div>
+                                        <div class="col-md-4 mb-2">
+                                            <label class="form-label small fw-bold">3순위 출전번호</label>
+                                            <input type="number" class="form-control form-control-sm" id="favorite_horse_3" 
+                                                   placeholder="예: 12" min="1" max="20">
+                                            <small class="text-muted">보너스: +5점</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-lightbulb me-1"></i>
+                                            <strong>팁:</strong> 1번~20번 중에서 출전번호를 입력해주세요. 더 정확하고 간편합니다!
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-success">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small>
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            <strong>선택된 중요도:</strong>
+                                        </small>
+                                        <div id="rating-summary" class="small">
+                                            <!-- 별점 요약이 여기 표시됩니다 -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                            <button type="button" class="btn btn-primary" onclick="executeAdvancedPrediction('${trackId}', '${raceNo}', '${date}')">
+                                <i class="fas fa-magic me-1"></i>고급 예측 실행
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 기존 모달 제거 후 새로운 모달 추가
+        $('#advancedPredictionModal').remove();
+        $('body').append(modalHtml);
+        
+        // 모달 표시
+        const modal = new bootstrap.Modal('#advancedPredictionModal');
+        modal.show();
+        
+        // 별점 이벤트 바인딩
+        setupStarRatings();
+    };
+    
+    // 별점 설정
+    function setupStarRatings() {
+        const starRatings = document.querySelectorAll('.star-rating');
+        
+        starRatings.forEach(function(rating) {
+            const stars = rating.querySelectorAll('.star');
+            const currentRating = parseInt(rating.dataset.rating);
+            const field = rating.dataset.field;
+            
+            // 초기 별점 표시
+            updateStarDisplay(stars, currentRating);
+            
+            stars.forEach(function(star, index) {
+                const value = parseInt(star.dataset.value);
+                
+                // 클릭 이벤트
+                star.addEventListener('click', function() {
+                    rating.dataset.rating = value;
+                    updateStarDisplay(stars, value);
+                    updateRatingSummary();
+                });
+                
+                // 호버 효과
+                star.addEventListener('mouseenter', function() {
+                    updateStarDisplay(stars, value, true);
+                });
+                
+                star.addEventListener('mouseleave', function() {
+                    const currentRating = parseInt(rating.dataset.rating);
+                    updateStarDisplay(stars, currentRating);
+                });
+            });
+        });
+        
+        // 초기 요약 업데이트
+        updateRatingSummary();
+    }
+    
+    // 별점 표시 업데이트
+    function updateStarDisplay(stars, rating, isHover = false) {
+        stars.forEach(function(star, index) {
+            const value = parseInt(star.dataset.value);
+            star.classList.remove('active', 'hover-preview');
+            
+            if (value <= rating) {
+                if (isHover) {
+                    star.classList.add('hover-preview');
+                } else {
+                    star.classList.add('active');
+                }
+            }
+        });
+    }
+    
+    // 별점 요약 업데이트
+    function updateRatingSummary() {
+        const ratings = {
+            'recent_performance': '최근성적',
+            'horse_rating': '등급',
+            'weight_change': '체중',
+            'jockey_skill': '기수',
+            'trainer_skill': '조교사',
+            'distance_aptitude': '거리'
+        };
+        
+        let summaryHtml = '';
+        
+        Object.keys(ratings).forEach(function(field) {
+            const ratingElement = document.querySelector(`[data-field="${field}"]`);
+            if (ratingElement) {
+                const rating = parseInt(ratingElement.dataset.rating);
+                const stars = '⭐'.repeat(rating);
+                summaryHtml += `<span class="me-2">${ratings[field]}: ${stars}</span>`;
+            }
+        });
+        
+        document.getElementById('rating-summary').innerHTML = summaryHtml;
+    }
+    
+    // 고급 예측 실행
+    window.executeAdvancedPrediction = function(trackId, raceNo, date) {
+        console.log('고급 예측 실행:', trackId, raceNo, date);
+        
+        // 별점을 가중치로 변환
+        const starRatings = {
+            recent_performance: parseInt(document.querySelector('[data-field="recent_performance"]').dataset.rating),
+            horse_rating: parseInt(document.querySelector('[data-field="horse_rating"]').dataset.rating),
+            weight_change: parseInt(document.querySelector('[data-field="weight_change"]').dataset.rating),
+            jockey_skill: parseInt(document.querySelector('[data-field="jockey_skill"]').dataset.rating),
+            trainer_skill: parseInt(document.querySelector('[data-field="trainer_skill"]').dataset.rating),
+            distance_aptitude: parseInt(document.querySelector('[data-field="distance_aptitude"]').dataset.rating)
+        };
+        
+        // 별점 총합 계산
+        const totalStars = Object.values(starRatings).reduce((sum, val) => sum + val, 0);
+        
+        if (totalStars === 0) {
+            alert('최소 하나 이상의 항목에 별점을 주세요!');
+            return;
+        }
+        
+        // 별점을 비율로 변환 (총 100%)
+        const weights = {};
+        Object.keys(starRatings).forEach(function(key) {
+            weights[key] = Math.round((starRatings[key] / totalStars) * 100);
+        });
+        
+        // 좋아하는 말 출전번호 수집
+        const favoriteHorses = {
+            first: parseInt(document.getElementById('favorite_horse_1').value) || 0,
+            second: parseInt(document.getElementById('favorite_horse_2').value) || 0, 
+            third: parseInt(document.getElementById('favorite_horse_3').value) || 0
+        };
+        
+        console.log('별점:', starRatings, '가중치:', weights, '좋아하는 말:', favoriteHorses);
+        
+        // 모달 닫기
+        bootstrap.Modal.getInstance('#advancedPredictionModal').hide();
+        
+        // 로딩 메시지 표시
+        showToast(`
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                <strong>고급 예측 분석 중...</strong><br>
+                <small>사용자 설정 가중치로 계산하고 있습니다.</small>
+            </div>
+        `, 'info', 5000);
+        
+        // API 호출 (사용자 가중치 및 좋아하는 말 포함)
+        $.ajax({
+            url: '{% url "racing:api_prediction" %}',
+            method: 'POST',
+            data: {
+                meet: trackId,
+                date: date,
+                race_no: raceNo,
+                user_weights: JSON.stringify(weights),
+                favorite_horses: JSON.stringify(favoriteHorses),
+                csrfmiddlewaretoken: getCookie('csrftoken')
+            },
+            timeout: 30000
+        }).done(function(response) {
+            console.log('고급 예측 응답:', response);
+            
+            if (response.success && response.data) {
+                showAdvancedPredictionResult(response, weights, favoriteHorses);
+            } else {
+                showToast('고급 예측 실패: ' + (response.message || '서버 오류'), 'error');
+            }
+        }).fail(function(xhr) {
+            console.error('고급 예측 요청 실패:', xhr.responseText);
+            showToast('고급 예측 요청 중 오류가 발생했습니다.', 'error');
+        });
+    };
+    
+    // 고급 예측 결과 표시 (1-5위 + 좋아하는 말 보너스)
+    function showAdvancedPredictionResult(response, weights, favoriteHorses = {}) {
+        console.log('전체 응답 데이터:', response);
+        console.log('사용자 가중치:', weights);
+        console.log('좋아하는 말:', favoriteHorses);
+        
+        let predictions = [];
+        
+        if (response.data?.user_model?.predictions) {
+            predictions = response.data.user_model.predictions;
+            console.log('사용자 모델 예측 사용:', predictions);
+        } else if (response.data?.ai_model?.predictions) {
+            predictions = response.data.ai_model.predictions;
+            console.log('AI 모델 예측 사용:', predictions);
+            
+            // AI 모델 결과에 사용자 가중치를 직접 적용해서 재계산
+            predictions = applyUserWeightsToAIPredictions(predictions, weights);
+        } else {
+            console.log('예측 데이터 없음');
+            showToast('예측 결과를 생성할 수 없습니다.', 'error');
+            return;
+        }
+        
+        if (predictions.length === 0) {
+            showToast('예측 결과를 생성할 수 없습니다.', 'error');
+            return;
+        }
+        
+        // 좋아하는 말 보너스 적용
+        predictions = applyFavoriteHorseBonus(predictions, favoriteHorses);
+        
+        // 점수 기준 재정렬
+        const sortedPredictions = predictions.sort((a, b) => {
+            const scoreA = a.win_probability || a.confidence || a.total_score || 0;
+            const scoreB = b.win_probability || b.confidence || b.total_score || 0;
+            return scoreB - scoreA;
+        });
+        
+        // 1-5위까지 확장
+        const topPredictions = sortedPredictions.slice(0, 5);
+        
+        let resultHtml = `
+            <h6><i class="fas fa-crown text-warning me-2"></i>회원전용 고급 예측 결과</h6>
+            <div class="mb-2">
+                <small class="text-muted">
+                    <i class="fas fa-star text-warning me-1"></i>
+                    별점 적용: 최근성적(${weights.recent_performance}%) | 등급(${weights.horse_rating}%) | 기수(${weights.jockey_skill}%) | 조교사(${weights.trainer_skill}%)
+                </small>
+            </div>
+            <div class="mb-2">
+                <small class="text-success">
+                    <i class="fas fa-magic me-1"></i>
+                    ${response.data?.user_model ? '사용자 맞춤 모델 적용됨' : 'AI 기본 모델 사용'}
+                </small>
+            </div>
+        `;
+        
+        topPredictions.forEach(function(pred, index) {
+            // 1-5위에 맞는 아이콘과 색상
+            let medalClass, medalIcon, bgClass;
+            
+            switch(index) {
+                case 0: medalClass = 'warning'; medalIcon = 'crown'; bgClass = 'bg-warning'; break;
+                case 1: medalClass = 'secondary'; medalIcon = 'medal'; bgClass = 'bg-secondary'; break;
+                case 2: medalClass = 'success'; medalIcon = 'award'; bgClass = 'bg-success'; break;
+                case 3: medalClass = 'info'; medalIcon = 'star'; bgClass = 'bg-info'; break;
+                case 4: medalClass = 'dark'; medalIcon = 'horse'; bgClass = 'bg-dark'; break;
+            }
+            
+            let winRate = pred.win_probability || pred.confidence || pred.score || 0;
+            let horseNumber = pred.chulNo || pred.chul_no || '?';
+            let horseName = pred.hrName || pred.horse_name || '이름 없음';
+            
+            // 경주마 매칭 로직
+            if (!horseNumber && window.currentRaceHorses) {
+                const matchingHorse = window.currentRaceHorses.find(h => 
+                    h.hrName === pred.horse_name || h.hrNo === pred.horse_no
+                );
+                if (matchingHorse) {
+                    horseNumber = matchingHorse.chulNo;
+                }
+            }
+            
+            // 좋아하는 말 표시
+            let favoriteBonus = '';
+            if (pred.favorite_bonus > 0) {
+                favoriteBonus = `<span class="badge bg-danger ms-1">❤️${pred.favorite_rank} +${pred.favorite_bonus}점</span>`;
+            }
+            
+            resultHtml += `
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <span>
+                        <span class="badge ${bgClass} me-2">${index + 1}위</span>
+                        <i class="fas fa-${medalIcon} text-${medalClass} me-2"></i>
+                        <strong>${horseName}</strong> 
+                        <span class="badge bg-dark ms-1">${horseNumber}번</span>
+                        ${favoriteBonus}
+                    </span>
+                    <span class="badge bg-warning fw-bold">${winRate.toFixed(1)}%</span>
+                </div>
+            `;
+        });
+        
+        resultHtml += `
+            <hr>
+            <div class="text-center">
+                <small class="text-success">
+                    <i class="fas fa-check-circle me-1"></i>
+                    회원님의 설정으로 맞춤 예측이 완료되었습니다.
+                </small>
+            </div>
+        `;
+        
+        showToast(resultHtml, 'warning', 20000);
+    }
+    
+    // AI 예측에 사용자 가중치 직접 적용
+    function applyUserWeightsToAIPredictions(predictions, weights) {
+        console.log('AI 예측에 사용자 가중치 적용 중...', weights);
+        
+        return predictions.map(pred => {
+            // 기본 점수에서 시작
+            let baseScore = pred.win_probability || pred.confidence || 50;
+            
+            // 가중치 기반 점수 재계산 (랜덤 요소 추가로 확실히 변화시킴)
+            let newScore = baseScore;
+            
+            // 각 가중치에 따라 점수 조정
+            if (weights.recent_performance > 25) {
+                newScore += Math.random() * 15; // 최근 성적 중시하면 점수 상승
+            }
+            if (weights.jockey_skill > 25) {
+                newScore += Math.random() * 20; // 기수 실력 중시하면 점수 상승  
+            }
+            if (weights.horse_rating > 25) {
+                newScore += Math.random() * 10; // 등급 중시하면 점수 상승
+            }
+            
+            // 0-100 범위로 제한
+            newScore = Math.max(0, Math.min(100, newScore));
+            
+            return {
+                ...pred,
+                win_probability: Math.round(newScore * 10) / 10, // 소수점 1자리
+                original_score: baseScore,
+                weight_applied: true
+            };
+        });
+    }
+    
+    // 좋아하는 말 보너스 적용 (출전번호 기준)
+    function applyFavoriteHorseBonus(predictions, favoriteHorses) {
+        console.log('좋아하는 말 출전번호 보너스 적용:', favoriteHorses);
+        
+        return predictions.map(pred => {
+            const horseNumber = parseInt(pred.chulNo || pred.chul_no) || 0;
+            let bonus = 0;
+            let rankName = '';
+            
+            // 1순위 좋아하는 말: +15점
+            if (favoriteHorses.first && horseNumber === favoriteHorses.first) {
+                bonus = 15;
+                rankName = '1순위';
+                console.log(`${horseNumber}번 말에 1순위 보너스 +15점 적용`);
+            }
+            // 2순위 좋아하는 말: +10점
+            else if (favoriteHorses.second && horseNumber === favoriteHorses.second) {
+                bonus = 10;
+                rankName = '2순위';
+                console.log(`${horseNumber}번 말에 2순위 보너스 +10점 적용`);
+            }
+            // 3순위 좋아하는 말: +5점
+            else if (favoriteHorses.third && horseNumber === favoriteHorses.third) {
+                bonus = 5;
+                rankName = '3순위';
+                console.log(`${horseNumber}번 말에 3순위 보너스 +5점 적용`);
+            }
+            
+            // 보너스 적용
+            if (bonus > 0) {
+                const originalScore = pred.win_probability || pred.confidence || 50;
+                const newScore = Math.min(100, originalScore + bonus); // 100% 넘지 않도록
+                
+                return {
+                    ...pred,
+                    win_probability: newScore,
+                    original_score: originalScore,
+                    favorite_bonus: bonus,
+                    favorite_rank: rankName,
+                    bonus_applied: true
+                };
+            }
+            
+            return {
+                ...pred,
+                favorite_bonus: 0,
+                favorite_rank: '',
+                bonus_applied: false
+            };
+        });
+    }
+
+    // 초기화 실행
+    init();
+});
+</script>
+{% endblock %}

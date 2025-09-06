@@ -1,0 +1,893 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - 경마 예측 시스템{% endblock %}
+
+{% block extra_css %}
+<style>
+.prediction-card {
+    border-left: 4px solid #007bff;
+    transition: all 0.3s ease;
+    margin-bottom: 15px;
+}
+
+.prediction-card.ai-model {
+    border-left-color: #28a745;
+}
+
+.prediction-card.user-model {
+    border-left-color: #17a2b8;
+}
+
+.prediction-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.horse-prediction-item {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.horse-prediction-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rank-badge {
+    font-size: 1.2em;
+    font-weight: bold;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rank-1 { background: linear-gradient(45deg, #FFD700, #FFA500); color: white; }
+.rank-2 { background: linear-gradient(45deg, #C0C0C0, #A9A9A9); color: white; }
+.rank-3 { background: linear-gradient(45deg, #CD7F32, #B87333); color: white; }
+.rank-other { background: #6c757d; color: white; }
+
+.probability-bar {
+    height: 20px;
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.probability-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.prob-high { background: linear-gradient(90deg, #28a745, #20c997); }
+.prob-medium { background: linear-gradient(90deg, #ffc107, #fd7e14); }
+.prob-low { background: linear-gradient(90deg, #dc3545, #e83e8c); }
+
+.weight-slider {
+    width: 100%;
+}
+
+.model-comparison {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.parameter-control {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.accuracy-badge {
+    font-size: 0.8em;
+    padding: 4px 8px;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+/* AI 예측 모델 고급 스타일 */
+.ai-enhanced {
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    overflow: hidden;
+    background: #fff;
+}
+
+.ai-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.ai-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.ai-icon-wrapper {
+    position: relative;
+    z-index: 2;
+}
+
+.ai-icon {
+    font-size: 2rem;
+    color: #fff;
+    animation: pulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); opacity: 0.8; }
+    to { transform: scale(1.05); opacity: 1; }
+}
+
+.ai-stats {
+    position: relative;
+    z-index: 2;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 0.75rem;
+    backdrop-filter: blur(10px);
+}
+
+.stat-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #fff;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.8);
+    margin-top: 2px;
+}
+
+.ai-body {
+    padding: 1.5rem;
+    background: linear-gradient(180deg, #f8f9ff 0%, #fff 100%);
+}
+
+/* AI 예측 결과 아이템 스타일 개선 */
+.ai-enhanced .horse-prediction-item {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-enhanced .horse-prediction-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #667eea, #764ba2);
+}
+
+.ai-enhanced .horse-prediction-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102,126,234,0.15);
+}
+
+.ai-enhanced .rank-badge {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-weight: bold;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.ai-enhanced .rank-badge.rank-1 {
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+    box-shadow: 0 4px 15px rgba(255,215,0,0.4);
+}
+
+.ai-enhanced .rank-badge.rank-2 {
+    background: linear-gradient(135deg, #c0c0c0, #e5e5e5);
+    color: #333;
+    box-shadow: 0 4px 15px rgba(192,192,192,0.4);
+}
+
+.ai-enhanced .rank-badge.rank-3 {
+    background: linear-gradient(135deg, #cd7f32, #daa520);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(205,127,50,0.4);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- 페이지 헤더 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-brain"></i> {{ title }}</h2>
+                    <p class="text-muted">AI 예측과 사용자 설정 예측을 비교해보세요</p>
+                </div>
+                <div>
+                    <a href="{% url 'racing:schedule' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-alt"></i> 경주 일정
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 경주 선택 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-search"></i> 경주 선택</h5>
+                    <form id="raceSelectionForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">경주일 선택</label>
+                            <div class="btn-group w-100" role="group" aria-label="경주일 선택">
+                                <input type="radio" class="btn-check" name="dayOptions" id="fridayBtn" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="fridayBtn">금요일</label>
+                                
+                                <input type="radio" class="btn-check" name="dayOptions" id="saturdayBtn" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="saturdayBtn">토요일</label>
+                                
+                                <input type="radio" class="btn-check" name="dayOptions" id="sundayBtn" autocomplete="off">
+                                <label class="btn btn-outline-primary" for="sundayBtn">일요일</label>
+                            </div>
+                            <input type="hidden" id="raceDate">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="raceNo" class="form-label">경주 선택 (시간순)</label>
+                            <div class="race-scroll-container" style="max-height: 120px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.375rem;">
+                                <div class="list-group list-group-flush" id="raceList">
+                                    <!-- 경주 목록이 여기에 동적으로 생성됩니다 -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="raceNo">
+                            <input type="hidden" id="meet">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-success w-100 mb-2">
+                                <i class="fas fa-magic"></i> 예측 시작
+                            </button>
+                            <button type="button" id="resetBtn" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-redo"></i> 초기화
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 예측 결과 -->
+    <div id="predictionResults" style="display: none;">
+        <!-- 모델 비교 요약 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="model-comparison">
+                    <h5><i class="fas fa-chart-line"></i> 예측 모델 비교</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-robot text-success"></i> AI 자동 예측</span>
+                                <span class="badge bg-success accuracy-badge" id="aiAccuracy">정확도: -</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-user-cog text-info"></i> 사용자 설정 예측</span>
+                                <button class="btn btn-sm btn-info" id="adjustWeightsBtn">
+                                    <i class="fas fa-sliders-h"></i> 가중치 조정
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 예측 결과 비교 -->
+        <div class="row">
+            <!-- AI 예측 결과 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card prediction-card ai-model ai-enhanced">
+                    <div class="card-header ai-header">
+                        <div class="d-flex align-items-center">
+                            <div class="ai-icon-wrapper me-3">
+                                <i class="fas fa-brain ai-icon"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1 text-white">🤖 AI 자동 예측</h5>
+                                <small class="text-light opacity-75">딥러닝 기반 승률 분석</small>
+                            </div>
+                            <div class="ai-version">
+                                <span class="badge bg-light text-dark">v<span id="aiVersion">1.0</span></span>
+                            </div>
+                        </div>
+                        <div class="ai-stats mt-2">
+                            <div class="row">
+                                <div class="col-4 text-center">
+                                    <div class="stat-value" id="aiAccuracy">--</div>
+                                    <div class="stat-label">정확도</div>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="stat-value" id="aiConfidence">--</div>
+                                    <div class="stat-label">신뢰도</div>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <div class="stat-value" id="aiProcessed">--</div>
+                                    <div class="stat-label">분석 완료</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body ai-body">
+                        <div id="aiPredictions">
+                            <!-- AI 예측 결과가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 사용자 파라미터 예측 결과 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card prediction-card user-model">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="fas fa-user-cog"></i> 사용자 설정 예측</h6>
+                        <small class="text-muted">커스텀</small>
+                    </div>
+                    <div class="card-body position-relative">
+                        <div id="userLoadingOverlay" class="loading-overlay" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="userPredictions">
+                            <!-- 사용자 예측 결과가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 상태 -->
+    <div id="loadingState" class="text-center" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">예측 모델을 실행하는 중...</p>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div id="errorMessage" class="alert alert-danger" style="display: none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="errorText"></span>
+    </div>
+</div>
+
+<!-- 가중치 조정 모달 -->
+<div class="modal fade" id="weightsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-sliders-h"></i> 사용자 파라미터 가중치 조정
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-4">각 요소의 중요도를 조정해서 나만의 예측 모델을 만들어보세요.</p>
+                
+                <div id="weightControls">
+                    <!-- 가중치 슬라이더들이 여기에 추가됩니다 -->
+                </div>
+                
+                <div class="mt-3 p-3 bg-light rounded">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i> 
+                        총 가중치는 자동으로 100%로 조정됩니다.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="resetWeightsBtn">
+                    <i class="fas fa-undo"></i> 기본값 복원
+                </button>
+                <button type="button" class="btn btn-primary" id="applyWeightsBtn">
+                    <i class="fas fa-check"></i> 적용하고 다시 예측
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let currentRaceData = null;
+    
+    // URL 파라미터 자동 로드
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('meet') && urlParams.get('date') && urlParams.get('race_no')) {
+        $('#meet').val(urlParams.get('meet'));
+        $('#raceDate').val(urlParams.get('date'));
+        $('#raceNo').val(urlParams.get('race_no'));
+        
+        // 자동으로 예측 시작
+        setTimeout(() => {
+            loadPredictions();
+        }, 500);
+    }
+    let currentWeights = {
+        'recent_performance': 25.0,
+        'jockey_skill': 20.0,
+        'trainer_skill': 15.0,
+        'horse_condition': 15.0,
+        'distance_experience': 10.0,
+        'track_condition': 8.0,
+        'odds_factor': 7.0
+    };
+
+    const weightLabels = {
+        'recent_performance': '최근 성적',
+        'jockey_skill': '기수 실력',
+        'trainer_skill': '조교사 실력',
+        'horse_condition': '말 컨디션',
+        'distance_experience': '거리 경험',
+        'track_condition': '트랙 상태',
+        'odds_factor': '배당률 요소'
+    };
+
+    // 폼 제출
+    $('#raceSelectionForm').submit(function(e) {
+        e.preventDefault();
+        loadPredictions();
+    });
+
+    // 초기화 버튼
+    $('#resetBtn').click(function() {
+        $('input[name="dayOptions"]').prop('checked', false);
+        $('#raceDate').val('');
+        $('#raceNo').val('');
+        $('#raceList').empty();
+        $('#predictionResults').hide();
+        $('#errorMessage').hide();
+    });
+
+    // 금토일 버튼 클릭 이벤트
+    $('input[name="dayOptions"]').change(function() {
+        if ($(this).is(':checked')) {
+            const selectedDay = $(this).attr('id');
+            const date = getDateByDay(selectedDay);
+            $('#raceDate').val(date);
+            loadRaceSchedule();
+        }
+    });
+
+    // 특정 요일의 날짜 계산
+    function getDateByDay(dayId) {
+        const today = new Date();
+        const currentDay = today.getDay(); // 0=일, 1=월, ..., 6=토
+        let targetDay;
+        
+        switch(dayId) {
+            case 'fridayBtn': targetDay = 5; break; // 금요일
+            case 'saturdayBtn': targetDay = 6; break; // 토요일  
+            case 'sundayBtn': targetDay = 0; break; // 일요일
+            default: targetDay = 5; break;
+        }
+        
+        let daysUntilTarget = targetDay - currentDay;
+        if (daysUntilTarget < 0) {
+            daysUntilTarget += 7; // 다음 주
+        }
+        if (daysUntilTarget === 0 && today.getHours() >= 18) {
+            daysUntilTarget = 7; // 오늘 오후 6시 이후면 다음 주
+        }
+        
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + daysUntilTarget);
+        
+        return targetDate.toISOString().split('T')[0].replace(/-/g, '');
+    }
+
+    // 경주 일정 조회 (모든 경마장)
+    function loadRaceSchedule() {
+        const date = $('#raceDate').val();
+        
+        if (!date) return;
+        
+        // 모든 경마장 조회 (서울=1, 부산=2, 제주=3)
+        const trackPromises = [1, 2, 3].map(meet => {
+            return $.ajax({
+                url: '/api/schedule/',
+                data: { meet: meet, date: date }
+            }).then(response => {
+                if (response.success && response.data && response.data.length > 0) {
+                    return response.data.map(race => ({
+                        ...race,
+                        meet: meet,
+                        trackName: meet === 1 ? '서' : meet === 2 ? '부' : '제'
+                    }));
+                }
+                return [];
+            }).catch(() => []);
+        });
+        
+        Promise.all(trackPromises).then(results => {
+            const allRaces = results.flat();
+            if (allRaces.length > 0) {
+                displayRaceList(allRaces);
+            } else {
+                $('#raceList').html('<div class="alert alert-warning m-2">해당 일자에 경주가 없습니다.</div>');
+            }
+        });
+    }
+
+    // 경주 목록 표시 (시간순 정렬, 서1R 부1R 형태)
+    function displayRaceList(races) {
+        const $raceList = $('#raceList');
+        $raceList.empty();
+        
+        if (!races || races.length === 0) {
+            $raceList.html('<div class="alert alert-warning m-2">경주가 없습니다.</div>');
+            return;
+        }
+        
+        // 시간순 정렬 (출발시간 기준)
+        races.sort((a, b) => {
+            // 시간을 숫자로 변환해서 비교 (예: "14:20" -> 1420)
+            const timeA = a.rcTime ? parseInt(a.rcTime.replace(':', '')) : 0;
+            const timeB = b.rcTime ? parseInt(b.rcTime.replace(':', '')) : 0;
+            
+            // 시간이 같으면 경주번호로 정렬
+            if (timeA === timeB) {
+                return parseInt(a.rcNo) - parseInt(b.rcNo);
+            }
+            
+            return timeA - timeB;
+        });
+        
+        races.forEach(race => {
+            const raceItem = $(`
+                <a href="#" class="list-group-item list-group-item-action race-item" 
+                   data-race-no="${race.rcNo}" data-meet="${race.meet}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${race.trackName}${race.rcNo}R</strong>
+                            <small class="text-muted d-block">${race.rcTime} • ${race.rcDist}m</small>
+                        </div>
+                        <span class="badge bg-primary">${race.chulNo || 0}마리</span>
+                    </div>
+                </a>
+            `);
+            $raceList.append(raceItem);
+        });
+    }
+
+    // 경주 선택 이벤트
+    $(document).on('click', '.race-item', function(e) {
+        e.preventDefault();
+        
+        // 다른 항목들 선택 해제
+        $('.race-item').removeClass('active');
+        
+        // 현재 항목 선택
+        $(this).addClass('active');
+        
+        // 경주번호와 경마장 설정
+        const raceNo = $(this).data('race-no');
+        const meet = $(this).data('meet');
+        $('#raceNo').val(raceNo);
+        $('#meet').val(meet);
+    });
+
+    // 가중치 조정 버튼
+    $('#adjustWeightsBtn').click(function() {
+        showWeightsModal();
+    });
+
+    // 가중치 적용 버튼
+    $('#applyWeightsBtn').click(function() {
+        applyUserWeights();
+        $('#weightsModal').modal('hide');
+    });
+
+    // 가중치 초기화 버튼
+    $('#resetWeightsBtn').click(function() {
+        resetWeights();
+    });
+
+    function loadPredictions() {
+        const meet = $('#meet').val();
+        const date = $('#raceDate').val();
+        const raceNo = $('#raceNo').val();
+
+        if (!date || !raceNo) {
+            showError('경주일과 경주번호를 선택해주세요.');
+            return;
+        }
+
+        // UI 초기화
+        $('#errorMessage').hide();
+        $('#predictionResults').hide();
+        $('#loadingState').show();
+
+        // API 호출
+        $.ajax({
+            url: '/api/prediction/',
+            data: {
+                meet: meet,
+                date: date,
+                race_no: raceNo
+            },
+            success: function(response) {
+                $('#loadingState').hide();
+                if (response.success) {
+                    currentRaceData = response.data;
+                    showPredictionResults(response.data);
+                    $('#predictionResults').show();
+                } else {
+                    showError(response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#loadingState').hide();
+                showError('서버 오류가 발생했습니다: ' + error);
+            }
+        });
+    }
+
+    function showPredictionResults(data) {
+        // AI 모델 결과
+        if (data.ai_model && data.ai_model.predictions) {
+            $('#aiVersion').text(data.ai_model.version || '1.0');
+            $('#aiAccuracy').text(`${(data.ai_model.accuracy || 0).toFixed(1)}%`);
+            
+            // AI 통계 업데이트
+            const avgConfidence = data.ai_model.predictions.reduce((sum, pred) => 
+                sum + (pred.win_probability || 0), 0) / data.ai_model.predictions.length;
+            $('#aiConfidence').text(`${avgConfidence.toFixed(1)}%`);
+            $('#aiProcessed').text(`${data.ai_model.predictions.length}마리`);
+            
+            displayPredictions('#aiPredictions', data.ai_model.predictions, 'ai');
+        }
+
+        // 사용자 모델 결과
+        if (data.user_model && data.user_model.predictions) {
+            displayPredictions('#userPredictions', data.user_model.predictions, 'user');
+        }
+    }
+
+    function displayPredictions(container, predictions, modelType) {
+        const $container = $(container);
+        $container.empty();
+
+        if (!predictions || predictions.length === 0) {
+            $container.html('<div class="alert alert-warning">예측 결과가 없습니다.</div>');
+            return;
+        }
+
+        predictions.forEach((pred, index) => {
+            const card = createPredictionCard(pred, index + 1, modelType);
+            $container.append(card);
+        });
+    }
+
+    function createPredictionCard(prediction, rank, modelType) {
+        const probability = parseFloat(prediction.win_probability || 0);
+        const probClass = probability >= 70 ? 'prob-high' : 
+                         probability >= 40 ? 'prob-medium' : 'prob-low';
+        
+        const rankClass = rank === 1 ? 'rank-1' : 
+                         rank === 2 ? 'rank-2' : 
+                         rank === 3 ? 'rank-3' : 'rank-other';
+
+        return `
+        <div class="horse-prediction-item p-3">
+            <div class="d-flex align-items-center mb-2">
+                <div class="rank-badge ${rankClass} rounded-circle me-3">
+                    ${rank}
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">
+                        <span class="badge bg-primary me-2">${prediction.chul_no || prediction.gate_no || prediction.start_no || '?'}번</span>
+                        ${prediction.horse_name}
+                    </h6>
+                    <small class="text-muted">등록번호: ${prediction.horse_no}</small>
+                </div>
+                <div class="text-end">
+                    <div class="h5 mb-0 ${probability >= 70 ? 'text-success' : probability >= 40 ? 'text-warning' : 'text-danger'}">
+                        ${probability.toFixed(1)}%
+                    </div>
+                </div>
+            </div>
+            <div class="probability-bar bg-light">
+                <div class="probability-fill ${probClass}" style="width: ${Math.max(probability, 5)}%"></div>
+            </div>
+            ${modelType === 'user' ? createParameterDetails(prediction) : ''}
+        </div>`;
+    }
+
+    function createParameterDetails(prediction) {
+        if (!prediction.parameter_scores) return '';
+        
+        let details = '<div class="mt-2"><small class="text-muted">파라미터 점수:</small><div class="row mt-1">';
+        
+        Object.entries(prediction.parameter_scores).forEach(([param, score]) => {
+            const label = weightLabels[param] || param;
+            details += `
+            <div class="col-6 col-md-4">
+                <small>${label}: <strong>${score.toFixed(0)}점</strong></small>
+            </div>`;
+        });
+        
+        details += '</div></div>';
+        return details;
+    }
+
+    function showWeightsModal() {
+        const modal = $('#weightsModal');
+        const modalElement = modal.get(0);
+        
+        // 기존 이벤트 정리
+        modal.off();
+        
+        // 기존 Bootstrap 인스턴스 제거
+        const existingInstance = bootstrap.Modal.getInstance(modalElement);
+        if (existingInstance) {
+            existingInstance.dispose();
+        }
+        
+        const $controls = $('#weightControls');
+        $controls.empty();
+
+        Object.entries(currentWeights).forEach(([param, weight]) => {
+            const label = weightLabels[param] || param;
+            const control = createWeightControl(param, label, weight);
+            $controls.append(control);
+        });
+
+        // 정리 이벤트 등록
+        modal.one('hidden.bs.modal', function() {
+            $('#weightControls').empty();
+        });
+        
+        // 새 Bootstrap 인스턴스로 모달 표시
+        const bsModal = new bootstrap.Modal(modalElement, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        bsModal.show();
+    }
+
+    function createWeightControl(param, label, weight) {
+        return `
+        <div class="parameter-control">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label mb-0">${label}</label>
+                <span class="badge bg-primary" id="weight-${param}-value">${weight.toFixed(1)}%</span>
+            </div>
+            <input type="range" class="weight-slider" 
+                   id="weight-${param}" 
+                   min="0" max="50" step="0.5" 
+                   value="${weight}"
+                   data-param="${param}">
+        </div>`;
+    }
+
+    // 가중치 슬라이더 이벤트
+    $(document).on('input', '.weight-slider', function() {
+        const param = $(this).data('param');
+        const value = parseFloat($(this).val());
+        currentWeights[param] = value;
+        $(`#weight-${param}-value`).text(`${value.toFixed(1)}%`);
+    });
+
+    function resetWeights() {
+        currentWeights = {
+            'recent_performance': 25.0,
+            'jockey_skill': 20.0,
+            'trainer_skill': 15.0,
+            'horse_condition': 15.0,
+            'distance_experience': 10.0,
+            'track_condition': 8.0,
+            'odds_factor': 7.0
+        };
+        showWeightsModal();
+    }
+
+    function applyUserWeights() {
+        if (!currentRaceData) return;
+
+        $('#userLoadingOverlay').show();
+
+        const meet = $('#meet').val();
+        const date = $('#raceDate').val();
+        const raceNo = $('#raceNo').val();
+
+        // 가중치 적용해서 재예측
+        $.ajax({
+            url: `/api/prediction/?meet=${meet}&date=${date}&race_no=${raceNo}`,
+            method: 'POST',
+            data: JSON.stringify(currentWeights),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                $('#userLoadingOverlay').hide();
+                if (response.success && response.data.user_model) {
+                    displayPredictions('#userPredictions', response.data.user_model.predictions, 'user');
+                }
+            },
+            error: function(xhr, status, error) {
+                $('#userLoadingOverlay').hide();
+                console.error('가중치 적용 오류:', error);
+                console.error('응답:', xhr.responseText);
+                showError('가중치 적용 중 오류가 발생했습니다: ' + error);
+            }
+        });
+    }
+
+    function showError(message) {
+        $('#errorText').text(message);
+        $('#errorMessage').show();
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

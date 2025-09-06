@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+logs/
+
+# IDE
+.vscode/
+.claude/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 개발 문서
+MVP_개발계획.md
+경마예측개발계획서.txt
+today_info.png
+secrets.json
+
+# 임시 파일
+*.tmp
+*.bak
